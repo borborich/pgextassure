@@ -9,5 +9,6 @@ __pycache__/
 build/
 dist/
 release-artifacts/
+benchmark-results/
 pgextassure.json
 pgextassure.sarif

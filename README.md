@@ -346,6 +346,7 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Rule reference](docs/rules.md)
 - [Threat model](docs/threat-model.md)
 - [Roadmap](docs/roadmap.md)
+- [Public corpus pilot](benchmarks/public-corpus/README.md)
 
 ## Development
 
