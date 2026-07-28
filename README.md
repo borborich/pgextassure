@@ -68,6 +68,21 @@ pgextassure scan /path/to/postgres-extension \
   --fail-on none
 ```
 
+For a compact review queue that preserves every source location while grouping
+only findings with a proven shared routine identity:
+
+```bash
+pgextassure scan /path/to/postgres-extension \
+  --format grouped-json \
+  --output pgextassure-grouped.json \
+  --fail-on none
+```
+
+`grouped-json` is a separate report type, so the existing JSON v1 and SARIF
+contracts remain unchanged. Its summary reports both raw finding count and
+root-cause count. Rules without an explicit semantic identity remain
+location-scoped and are never merged heuristically.
+
 Exit behavior is controlled by `--fail-on`:
 
 ```text
@@ -150,7 +165,7 @@ Action inputs:
 | Input | Default | Meaning |
 | --- | --- | --- |
 | `path` | `.` | Extension source directory or supported input file |
-| `format` | `sarif` | `text`, `json`, or `sarif` |
+| `format` | `sarif` | `text`, `json`, `grouped-json`, or `sarif` |
 | `output` | `pgextassure.sarif` | Report file; set to an empty string for stdout |
 | `fail-on` | `none` | Minimum blocking severity, or `none` |
 | `python-version` | `3.11` | Python used to run PgExtAssure |

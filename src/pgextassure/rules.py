@@ -887,6 +887,23 @@ def _routine_key(
     )
 
 
+def _routine_identity_evidence(
+    kind: str,
+    name: str,
+    statement: str,
+    opening: int | None,
+) -> str:
+    arguments = (
+        " ".join(_parenthesized_content(statement, opening).split())
+        if opening is not None
+        else None
+    )
+    return (
+        f"routine = {kind.casefold()} {name}"
+        + (f"({arguments})" if arguments is not None else "")
+    )
+
+
 def _configuration_identifier(
     token: _SqlToken,
 ) -> tuple[str | None, bool]:
@@ -1241,9 +1258,7 @@ def scan_sql(path: str, text: str) -> list[Finding]:
         return re.search(r"\bPUBLIC\b", region, re.IGNORECASE) is not None
 
     revoked_at: dict[_RoutineKey, int] = {}
-    definer_routines: list[
-        tuple[int, int, _RoutineKey, str, str | None]
-    ] = []
+    definer_routines: list[tuple[int, int, _RoutineKey, str]] = []
     known_definers: set[_RoutineKey] = set()
     comments_masked = mask_sql_comments(lexical_text)
     for statement_offset, comments_statement in sql_statements(comments_masked):
@@ -1325,6 +1340,20 @@ def scan_sql(path: str, text: str) -> list[Finding]:
             if routine is not None
             else None
         )
+        routine_evidence = (
+            _routine_identity_evidence(
+                routine.group("kind"),
+                raw_routine_name,
+                routine_identifier_view,
+                (
+                    routine.start("open")
+                    if routine.group("open") is not None
+                    else None
+                ),
+            )
+            if routine is not None
+            else None
+        )
         known_before = (
             routine_key is not None
             and any(
@@ -1352,6 +1381,7 @@ def scan_sql(path: str, text: str) -> list[Finding]:
                         path=path,
                         text=text,
                         offset=statement_offset + definer.start(),
+                        evidence=routine_evidence,
                         capability="database.security-definer",
                         remediation=(
                             "Use only trusted schemas and put pg_temp last, for example "
@@ -1396,6 +1426,7 @@ def scan_sql(path: str, text: str) -> list[Finding]:
                         path=path,
                         text=text,
                         offset=statement_offset + mutation_offset,
+                        evidence=routine_evidence,
                         capability="database.security-definer",
                         remediation=(
                             "Keep the routine's final search_path constrained to "
@@ -1417,27 +1448,13 @@ def scan_sql(path: str, text: str) -> list[Finding]:
             }
         if definer and routine_key is not None:
             known_definers.add(routine_key)
-            opening = (
-                routine.start("open")
-                if routine.group("open") is not None
-                else None
-            )
+            assert routine_evidence is not None
             definer_routines.append(
                 (
                     statement_offset,
                     statement_offset + definer.start(),
                     routine_key,
-                    raw_routine_name,
-                    (
-                        " ".join(
-                            _parenthesized_content(
-                                routine_identifier_view,
-                                opening,
-                            ).split()
-                        )
-                        if opening is not None
-                        else None
-                    ),
+                    routine_evidence,
                 )
             )
 
@@ -1525,10 +1542,9 @@ def scan_sql(path: str, text: str) -> list[Finding]:
         statement_offset,
         definer_offset,
         key,
-        display_name,
-        display_arguments,
+        routine_evidence,
     ) in definer_routines:
-        kind, routine_name, arguments = key
+        _, routine_name, arguments = key
         wildcard_key = ("routine", routine_name, arguments)
         revoked_offset = max(
             revoked_at.get(key, -1),
@@ -1550,14 +1566,7 @@ def scan_sql(path: str, text: str) -> list[Finding]:
                     path=path,
                     text=text,
                     offset=definer_offset,
-                    evidence=(
-                        f"routine = {kind} {display_name}"
-                        + (
-                            f"({display_arguments})"
-                            if display_arguments is not None
-                            else ""
-                        )
-                    ),
+                    evidence=routine_evidence,
                     capability="database.public-execute",
                     remediation=(
                         "Add a later `REVOKE ALL ON FUNCTION/PROCEDURE ... FROM "

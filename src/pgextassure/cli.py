@@ -11,6 +11,7 @@ from typing import Sequence
 
 from .models import SEVERITY_RANK, ScanReport, Severity
 from .reporting import (
+    render_grouped_json,
     render_json,
     render_sarif,
     render_text,
@@ -42,7 +43,7 @@ def _parser() -> argparse.ArgumentParser:
     scan.add_argument("path", metavar="PATH")
     scan.add_argument(
         "--format",
-        choices=("text", "json", "sarif"),
+        choices=("text", "json", "grouped-json", "sarif"),
         default="text",
         dest="output_format",
     )
@@ -63,6 +64,8 @@ def _render(
 ) -> str:
     if output_format == "json":
         return render_json(report)
+    if output_format == "grouped-json":
+        return render_grouped_json(report)
     if output_format == "sarif":
         return render_sarif(report, path_prefix=sarif_path_prefix)
     return render_text(report)
