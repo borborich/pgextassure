@@ -8,6 +8,7 @@ from pathlib import PurePosixPath
 from typing import Any
 from urllib.parse import quote
 
+from .grouping import grouped_report_document
 from .models import Finding, ScanReport, Severity
 from .source import canonical_json_bytes
 
@@ -51,6 +52,16 @@ def sanitize_terminal_text(value: object) -> str:
 def render_json(report: ScanReport) -> str:
     return json.dumps(
         report.to_dict(),
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        indent=2,
+    ) + "\n"
+
+
+def render_grouped_json(report: ScanReport) -> str:
+    return json.dumps(
+        grouped_report_document(report),
         ensure_ascii=False,
         allow_nan=False,
         sort_keys=True,

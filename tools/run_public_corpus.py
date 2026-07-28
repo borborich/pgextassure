@@ -17,6 +17,7 @@ import sys
 import tempfile
 from typing import Sequence
 
+from pgextassure.grouping import group_findings
 from pgextassure.reporting import render_json
 from pgextassure.scanner import (
     RULESET_VERSION,
@@ -269,6 +270,11 @@ def _normalized_record(
     report,
 ) -> dict[str, object]:
     rule_counts = Counter(finding.rule_id for finding in report.findings)
+    groups = group_findings(report.findings)
+    root_cause_rule_counts = Counter(group.rule_id for group in groups)
+    root_cause_severity_counts = Counter(
+        group.severity.value for group in groups
+    )
     return {
         "repository": entry.repository,
         "url": entry.url,
@@ -279,9 +285,17 @@ def _normalized_record(
         "source_manifest_digest": report.manifest.digest,
         "files_scanned": report.summary.files_scanned,
         "findings": report.summary.findings,
+        "root_causes": len(groups),
         "by_severity": dict(report.summary.by_severity),
+        "root_causes_by_severity": {
+            severity: root_cause_severity_counts[severity]
+            for severity in ("critical", "high", "medium", "low")
+        },
         "capabilities": list(report.summary.capabilities),
         "rule_counts": dict(sorted(rule_counts.items())),
+        "root_cause_rule_counts": dict(
+            sorted(root_cause_rule_counts.items())
+        ),
     }
 
 
@@ -332,15 +346,26 @@ def _summary_tsv(records: Sequence[dict[str, object]]) -> str:
         "error_code",
         "files",
         "findings",
-        "critical",
-        "high",
-        "medium",
-        "low",
+        "root_causes",
+        "finding_critical",
+        "finding_high",
+        "finding_medium",
+        "finding_low",
+        "root_cause_critical",
+        "root_cause_high",
+        "root_cause_medium",
+        "root_cause_low",
     )
     lines = ["\t".join(columns)]
     for record in records:
         severity = record.get("by_severity")
         counts = severity if isinstance(severity, dict) else {}
+        root_cause_severity = record.get("root_causes_by_severity")
+        root_cause_counts = (
+            root_cause_severity
+            if isinstance(root_cause_severity, dict)
+            else {}
+        )
         lines.append(
             "\t".join(
                 (
@@ -350,10 +375,15 @@ def _summary_tsv(records: Sequence[dict[str, object]]) -> str:
                     str(record.get("error_code", "")),
                     str(record.get("files_scanned", "")),
                     str(record.get("findings", "")),
+                    str(record.get("root_causes", "")),
                     str(counts.get("critical", "")),
                     str(counts.get("high", "")),
                     str(counts.get("medium", "")),
                     str(counts.get("low", "")),
+                    str(root_cause_counts.get("critical", "")),
+                    str(root_cause_counts.get("high", "")),
+                    str(root_cause_counts.get("medium", "")),
+                    str(root_cause_counts.get("low", "")),
                 )
             )
         )

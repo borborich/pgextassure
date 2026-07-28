@@ -68,7 +68,13 @@ class PublicCorpusRunnerTests(unittest.TestCase):
             self.assertEqual("ok", record["status"])
             self.assertEqual(6, record["files_scanned"])
             self.assertEqual(0, record["findings"])
+            self.assertEqual(0, record["root_causes"])
+            self.assertEqual(
+                {"critical": 0, "high": 0, "medium": 0, "low": 0},
+                record["root_causes_by_severity"],
+            )
             self.assertEqual({}, record["rule_counts"])
+            self.assertEqual({}, record["root_cause_rule_counts"])
             self.assertFalse((output / "sample.json").exists())
 
     def test_raw_reports_require_explicit_directory(self) -> None:

@@ -302,6 +302,28 @@ class PostgreSqlEdgeRegressionTests(unittest.TestCase):
             public_execute.evidence,
         )
 
+    def test_search_path_evidence_uses_source_routine_identity(self) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "demo.sql"
+            path.write_text(
+                'CREATE FUNCTION public."LookupSecret"(secret_id bigint) '
+                "RETURNS bigint LANGUAGE sql SECURITY DEFINER "
+                "AS $$ SELECT secret_id $$;\n",
+                encoding="utf-8",
+            )
+
+            findings = scan_path(path).findings
+
+        search_path = next(
+            finding
+            for finding in findings
+            if finding.rule_id == "sql.security-definer-search-path"
+        )
+        self.assertEqual(
+            'routine = function public."LookupSecret"(secret_id bigint)',
+            search_path.evidence,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

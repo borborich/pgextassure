@@ -145,6 +145,26 @@ The MVP should prefer a cited finding over an unexplained aggregate score.
 Suppressions are not documented until the CLI implements a reviewable,
 versioned suppression mechanism.
 
+## Root-cause grouping
+
+`--format grouped-json` produces a review-oriented report alongside the stable
+JSON v1 and SARIF formats. The grouping strategy is deliberately conservative:
+
+- matching `sql.security-definer-search-path` records are grouped only when
+  their parsed routine identity and extension artifact scope match;
+- matching `sql.security-definer-public-execute` records use the same rule;
+- all other findings remain scoped to their original source location.
+
+Every group retains all source locations and reports its occurrence count. A
+stable `root_cause_id` is derived from the rule, severity, capability, artifact
+scope, and semantic identity; it does not depend on line numbers for supported
+semantic groups. Moving the same routine between versioned upgrade scripts
+therefore does not create a new review item, while identically named routines
+in separate extension package scopes are not merged.
+
+Grouping reduces duplicated review work. It does not reduce the raw finding
+count, change `--fail-on`, suppress a finding, or establish exploitability.
+
 ## Rule evolution
 
 A report should be associated with a PgExtAssure version and rule-set version.

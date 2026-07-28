@@ -147,18 +147,23 @@ jobs:
 
               environment="$RUNNER_TEMP/smoke-$version-$kind"
               report="$RUNNER_TEMP/smoke-$version-$kind.json"
+              grouped_report="$RUNNER_TEMP/smoke-$version-$kind-grouped.json"
               "$interpreter" -m venv "$environment"
               PIP_NO_INDEX=1 "$environment/bin/python" -m pip install --no-deps "$artifact"
               "$environment/bin/pgextassure" scan tests/fixtures/safe \
                 --format json \
                 --output "$report" \
                 --fail-on high
+              "$environment/bin/pgextassure" scan tests/fixtures/vulnerable \
+                --format grouped-json \
+                --output "$grouped_report" \
+                --fail-on none
               "$environment/bin/python" -m pgextassure scan tests/fixtures/safe \
                 --format text \
                 --fail-on high >/dev/null
               "$environment/bin/python" -c \
-                'import json, pathlib, sys; json.loads(pathlib.Path(sys.argv[1]).read_text())' \
-                "$report"
+                'import json, pathlib, sys; regular = json.loads(pathlib.Path(sys.argv[1]).read_text()); grouped = json.loads(pathlib.Path(sys.argv[2]).read_text()); assert regular["schema_version"] == "1.0"; assert grouped["report_type"] == "pgextassure.root-cause-groups"; assert grouped["summary"]["root_causes"] > 0' \
+                "$report" "$grouped_report"
             done
           done
 
@@ -233,6 +238,15 @@ jobs:
           fail-on: none
           python-version: "3.14"
 
+      - name: Scan vulnerable fixture to grouped JSON
+        uses: ./
+        with:
+          path: tests/fixtures/vulnerable
+          format: grouped-json
+          output: ${{ runner.temp }}/pgextassure-e2e/grouped.json
+          fail-on: none
+          python-version: "3.11"
+
       - name: Exercise stdout mode
         uses: ./
         with:
@@ -267,6 +281,7 @@ jobs:
           VULNERABLE_GATE_OUTCOME: ${{ steps.vulnerable-gate.outcome }}
           SAFE_SARIF: ${{ runner.temp }}/pgextassure-e2e/safe.sarif
           SAFE_JSON: ${{ runner.temp }}/pgextassure-e2e/safe.json
+          GROUPED_JSON: ${{ runner.temp }}/pgextassure-e2e/grouped.json
           OPTION_LOOKING_JSON: ${{ runner.temp }}/pgextassure-e2e/option-looking.json
           VULNERABLE_JSON: ${{ runner.temp }}/pgextassure-e2e/vulnerable.json
           SHADOW_SENTINEL_DIR: ${{ runner.temp }}/pgextassure-e2e/shadow-sentinels
@@ -284,6 +299,9 @@ jobs:
 
           sarif = json.loads(Path(os.environ["SAFE_SARIF"]).read_text(encoding="utf-8"))
           safe = json.loads(Path(os.environ["SAFE_JSON"]).read_text(encoding="utf-8"))
+          grouped = json.loads(
+              Path(os.environ["GROUPED_JSON"]).read_text(encoding="utf-8")
+          )
           option_looking = json.loads(
               Path(os.environ["OPTION_LOOKING_JSON"]).read_text(encoding="utf-8")
           )
@@ -293,6 +311,8 @@ jobs:
 
           assert sarif["version"] == "2.1.0"
           assert safe["schema_version"] == "1.0"
+          assert grouped["report_type"] == "pgextassure.root-cause-groups"
+          assert grouped["summary"]["root_causes"] > 0
           assert option_looking["summary"]["findings"] == 0
           assert safe["tool"]["name"] == "pgextassure"
           assert vulnerable["summary"]["findings"] > 0

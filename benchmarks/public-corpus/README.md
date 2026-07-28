@@ -73,6 +73,8 @@ scan errors exits `1`; manifest, checkout, or output errors exit `2`.
 
 The first reproducible pilot is documented in
 [RESULTS-2026-07-28.md](RESULTS-2026-07-28.md).
+The conservative root-cause grouping follow-up is documented in
+[GROUPING-2026-07-28.md](GROUPING-2026-07-28.md).
 
 ## Publication gate
 

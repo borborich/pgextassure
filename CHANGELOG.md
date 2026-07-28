@@ -6,6 +6,13 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Conservative `grouped-json` reports with stable root-cause identifiers,
+  complete occurrence locations, and separate finding/root-cause counts.
+- Routine-identity evidence for unsafe `SECURITY DEFINER` search paths.
+- Root-cause counts in the reproducible public-corpus runner.
+
 ## [0.1.0-alpha.1] - 2026-07-28
 
 ### Added
