@@ -1,0 +1,299 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  unit-tests:
+    name: Unit tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package
+        run: python -m pip install --no-deps -e .
+
+      - name: Compile source and tests
+        run: python -m compileall -q src tests
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+  distributions:
+    name: Reproducible distributions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Set up Python 3.11
+        id: python_311
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+
+      - name: Set up Python 3.14
+        id: python_314
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14"
+
+      - name: Build twice and compare bytes
+        env:
+          PYTHON_311: ${{ steps.python_311.outputs.python-path }}
+          PYTHON_314: ${{ steps.python_314.outputs.python-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          dist_311="$RUNNER_TEMP/dist-python-311"
+          dist_314="$RUNNER_TEMP/dist-python-314"
+          mkdir -p "$dist_311" "$dist_314" release-artifacts
+
+          build_distributions() {
+            local interpreter="$1"
+            local destination="$2"
+            "$interpreter" - "$destination" <<'PY'
+          import importlib
+          from pathlib import Path
+          import sys
+          import tomllib
+
+          destination = Path(sys.argv[1])
+          configuration = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          build_system = configuration["build-system"]
+          for backend_path in reversed(build_system.get("backend-path", [])):
+              sys.path.insert(0, backend_path)
+          backend = importlib.import_module(build_system["build-backend"])
+          print(backend.build_wheel(str(destination)))
+          print(backend.build_sdist(str(destination)))
+          PY
+          }
+
+          build_distributions "$PYTHON_311" "$dist_311"
+          build_distributions "$PYTHON_314" "$dist_314"
+
+          wheels_311=("$dist_311"/*.whl)
+          wheels_314=("$dist_314"/*.whl)
+          sdists_311=("$dist_311"/*.tar.gz)
+          sdists_314=("$dist_314"/*.tar.gz)
+          test "${#wheels_311[@]}" -eq 1
+          test "${#wheels_314[@]}" -eq 1
+          test "${#sdists_311[@]}" -eq 1
+          test "${#sdists_314[@]}" -eq 1
+
+          cmp "${wheels_311[0]}" "${wheels_314[0]}"
+          cmp "${sdists_311[0]}" "${sdists_314[0]}"
+
+          cp "${wheels_311[0]}" "${sdists_311[0]}" release-artifacts/
+          (
+            cd release-artifacts
+            sha256sum ./* > SHA256SUMS
+            sha256sum --check SHA256SUMS
+          )
+
+      - name: Smoke-test wheel and sdist offline
+        env:
+          PYTHON_311: ${{ steps.python_311.outputs.python-path }}
+          PYTHON_314: ${{ steps.python_314.outputs.python-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          wheels=(release-artifacts/*.whl)
+          sdists=(release-artifacts/*.tar.gz)
+          test "${#wheels[@]}" -eq 1
+          test "${#sdists[@]}" -eq 1
+
+          for interpreter in "$PYTHON_311" "$PYTHON_314"; do
+            version="$("$interpreter" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+            for kind in wheel sdist; do
+              artifact="${wheels[0]}"
+              if [[ "$kind" == "sdist" ]]; then
+                artifact="${sdists[0]}"
+              fi
+
+              environment="$RUNNER_TEMP/smoke-$version-$kind"
+              report="$RUNNER_TEMP/smoke-$version-$kind.json"
+              "$interpreter" -m venv "$environment"
+              PIP_NO_INDEX=1 "$environment/bin/python" -m pip install --no-deps "$artifact"
+              "$environment/bin/pgextassure" scan tests/fixtures/safe \
+                --format json \
+                --output "$report" \
+                --fail-on high
+              "$environment/bin/python" -m pgextassure scan tests/fixtures/safe \
+                --format text \
+                --fail-on high >/dev/null
+              "$environment/bin/python" -c \
+                'import json, pathlib, sys; json.loads(pathlib.Path(sys.argv[1]).read_text())' \
+                "$report"
+            done
+          done
+
+      - name: Upload release-ready distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pgextassure-distributions
+          path: release-artifacts/
+          if-no-files-found: error
+          retention-days: 7
+
+  action-e2e:
+    name: Composite Action end-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Prepare paths, including spaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p \
+            "$RUNNER_TEMP/pgextassure action/safe" \
+            "$RUNNER_TEMP/pgextassure-e2e/shadow-sentinels"
+          cp -R tests/fixtures/safe/. "$RUNNER_TEMP/pgextassure action/safe/"
+          mkdir -- --help
+          cp -R tests/fixtures/safe/. ./--help/
+
+          # A caller-controlled workspace must not be able to shadow pip, the
+          # scanner package, or Python's startup customization hook.
+          mkdir pip pgextassure
+          for module in pip pgextassure; do
+            cat > "$module/__init__.py" <<'PY'
+          import os
+          from pathlib import Path
+
+          marker = Path(os.environ["PGEXTASSURE_SHADOW_SENTINEL_DIR"])
+          (marker / f"{__name__}.executed").write_text("executed", encoding="utf-8")
+          raise RuntimeError(f"hostile workspace module imported: {__name__}")
+          PY
+          done
+          cat > sitecustomize.py <<'PY'
+          import os
+          from pathlib import Path
+
+          marker = Path(os.environ["PGEXTASSURE_SHADOW_SENTINEL_DIR"])
+          (marker / "sitecustomize.executed").write_text("executed", encoding="utf-8")
+          raise RuntimeError("hostile workspace sitecustomize imported")
+          PY
+
+          echo "PGEXTASSURE_SAFE_INPUT=$RUNNER_TEMP/pgextassure action/safe" >> "$GITHUB_ENV"
+          echo "PGEXTASSURE_SHADOW_SENTINEL_DIR=$RUNNER_TEMP/pgextassure-e2e/shadow-sentinels" >> "$GITHUB_ENV"
+
+      - name: Scan safe fixture to SARIF
+        uses: ./
+        with:
+          path: ${{ env.PGEXTASSURE_SAFE_INPUT }}
+          format: sarif
+          output: ${{ runner.temp }}/pgextassure-e2e/safe.sarif
+          fail-on: high
+          python-version: "3.11"
+
+      - name: Scan safe fixture to JSON
+        uses: ./
+        with:
+          path: ${{ env.PGEXTASSURE_SAFE_INPUT }}
+          format: json
+          output: ${{ runner.temp }}/pgextassure-e2e/safe.json
+          fail-on: none
+          python-version: "3.14"
+
+      - name: Exercise stdout mode
+        uses: ./
+        with:
+          path: tests/fixtures/safe
+          format: text
+          output: ""
+          fail-on: none
+          python-version: "3.11"
+
+      - name: Scan an option-looking input path
+        uses: ./
+        with:
+          path: --help
+          format: json
+          output: ${{ runner.temp }}/pgextassure-e2e/option-looking.json
+          fail-on: high
+          python-version: "3.11"
+
+      - name: Verify vulnerable fixture fails the gate
+        id: vulnerable-gate
+        continue-on-error: true
+        uses: ./
+        with:
+          path: tests/fixtures/vulnerable
+          format: json
+          output: ${{ runner.temp }}/pgextassure-e2e/vulnerable.json
+          fail-on: high
+          python-version: "3.11"
+
+      - name: Validate reports and gate outcome
+        env:
+          VULNERABLE_GATE_OUTCOME: ${{ steps.vulnerable-gate.outcome }}
+          SAFE_SARIF: ${{ runner.temp }}/pgextassure-e2e/safe.sarif
+          SAFE_JSON: ${{ runner.temp }}/pgextassure-e2e/safe.json
+          OPTION_LOOKING_JSON: ${{ runner.temp }}/pgextassure-e2e/option-looking.json
+          VULNERABLE_JSON: ${{ runner.temp }}/pgextassure-e2e/vulnerable.json
+          SHADOW_SENTINEL_DIR: ${{ runner.temp }}/pgextassure-e2e/shadow-sentinels
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$VULNERABLE_GATE_OUTCOME" = "failure"
+          shopt -s nullglob dotglob
+          shadow_sentinels=("$SHADOW_SENTINEL_DIR"/*)
+          test "${#shadow_sentinels[@]}" -eq 0
+          python -I - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          sarif = json.loads(Path(os.environ["SAFE_SARIF"]).read_text(encoding="utf-8"))
+          safe = json.loads(Path(os.environ["SAFE_JSON"]).read_text(encoding="utf-8"))
+          option_looking = json.loads(
+              Path(os.environ["OPTION_LOOKING_JSON"]).read_text(encoding="utf-8")
+          )
+          vulnerable = json.loads(
+              Path(os.environ["VULNERABLE_JSON"]).read_text(encoding="utf-8")
+          )
+
+          assert sarif["version"] == "2.1.0"
+          assert safe["schema_version"] == "1.0"
+          assert option_looking["summary"]["findings"] == 0
+          assert safe["tool"]["name"] == "pgextassure"
+          assert vulnerable["summary"]["findings"] > 0
+          PY

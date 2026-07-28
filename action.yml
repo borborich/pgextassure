@@ -1,0 +1,60 @@
+name: PgExtAssure PostgreSQL Extension Scan
+description: Static pre-admission security scan for PostgreSQL extension source trees
+author: PgExtAssure contributors
+
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  path:
+    description: Extension source directory or supported input file
+    required: false
+    default: .
+  format:
+    description: Report format (text, json, or sarif)
+    required: false
+    default: sarif
+  output:
+    description: Report file path; leave empty to write to stdout
+    required: false
+    default: pgextassure.sarif
+  fail-on:
+    description: Minimum blocking severity (critical, high, medium, low, or none)
+    required: false
+    default: none
+  python-version:
+    description: Python version used to run PgExtAssure
+    required: false
+    default: "3.11"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install PgExtAssure
+      shell: bash
+      run: python -I -m pip install "$GITHUB_ACTION_PATH"
+
+    - name: Scan extension
+      shell: bash
+      env:
+        PGEXTASSURE_INPUT_PATH: ${{ inputs.path }}
+        PGEXTASSURE_INPUT_FORMAT: ${{ inputs.format }}
+        PGEXTASSURE_INPUT_OUTPUT: ${{ inputs.output }}
+        PGEXTASSURE_INPUT_FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        args=(
+          scan
+          "--format=$PGEXTASSURE_INPUT_FORMAT"
+          "--fail-on=$PGEXTASSURE_INPUT_FAIL_ON"
+        )
+        if [[ -n "$PGEXTASSURE_INPUT_OUTPUT" ]]; then
+          args+=("--output=$PGEXTASSURE_INPUT_OUTPUT")
+        fi
+        args+=(-- "$PGEXTASSURE_INPUT_PATH")
+        python -I -m pgextassure "${args[@]}"

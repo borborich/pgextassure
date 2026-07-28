@@ -1,0 +1,6 @@
+* @borborich
+
+/.github/ @borborich
+/action.yml @borborich
+/pyproject.toml @borborich
+/src/pgextassure/_build_backend.py @borborich

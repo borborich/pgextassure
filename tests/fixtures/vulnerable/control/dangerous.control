@@ -1,0 +1,7 @@
+comment = 'Extension requiring privileged native-code installation'
+default_version = '1.0'
+module_pathname = '$libdir/pgextassure_dangerous'
+requires = 'file_fdw, plpython3u'
+relocatable = true
+superuser = true
+trusted = true

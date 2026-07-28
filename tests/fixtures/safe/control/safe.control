@@ -1,0 +1,7 @@
+# Safe metadata: the strings "superuser = true" and "trusted = false" in this
+# comment must not be interpreted as assignments.
+comment = 'A small, trusted SQL-only extension'
+default_version = '2.0'
+relocatable = false
+superuser = false
+trusted = false

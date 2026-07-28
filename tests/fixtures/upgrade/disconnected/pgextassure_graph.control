@@ -1,0 +1,5 @@
+comment = 'Fixture whose default version is unreachable from the install version'
+default_version = '3.0'
+relocatable = true
+superuser = false
+trusted = true
