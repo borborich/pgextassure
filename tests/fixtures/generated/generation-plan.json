@@ -1,0 +1,14 @@
+{
+  "artifacts": [
+    {
+      "inputs": [
+        {
+          "path": "Makefile",
+          "sha256": "sha256:bd3a8df0c3be6d5713fdc0071a0e7af8b233c2948212186a0f9da062de4f53e1"
+        }
+      ],
+      "path": "generated_demo--1.0.sql"
+    }
+  ],
+  "schema_version": "1.0"
+}

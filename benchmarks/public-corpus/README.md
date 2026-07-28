@@ -39,8 +39,11 @@ Create one checkout per `repository` value:
 
 Each checkout must be detached at the exact 40-character commit recorded in
 `manifest.tsv`. Some monorepositories use a narrower `scan_path` pointing at
-the extension package inside the checkout. Fetching is deliberately separate
-from scanning so the scan itself has no network behavior.
+the extension package inside the checkout. The opt-in
+`manifest-generation.tsv` adds a `generation_plan` column; a value other than
+`-` points to a reviewed plan under `plans/`, and every referenced build input
+is pinned by SHA-256. Fetching is deliberately separate from scanning so the
+scan itself has no network behavior.
 
 ## Run
 
@@ -49,6 +52,13 @@ From a PgExtAssure development checkout:
 ```bash
 python -m pip install --no-deps -e .
 python tools/run_public_corpus.py /path/to/corpus
+```
+
+To reproduce the generated-artifact follow-up:
+
+```bash
+python tools/run_public_corpus.py /path/to/corpus \
+  --manifest benchmarks/public-corpus/manifest-generation.tsv
 ```
 
 The default normalized output is:
@@ -75,6 +85,8 @@ The first reproducible pilot is documented in
 [RESULTS-2026-07-28.md](RESULTS-2026-07-28.md).
 The conservative root-cause grouping follow-up is documented in
 [GROUPING-2026-07-28.md](GROUPING-2026-07-28.md).
+The generated-artifact follow-up is documented in
+[GENERATION-2026-07-28.md](GENERATION-2026-07-28.md).
 
 ## Publication gate
 

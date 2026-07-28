@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -26,7 +27,9 @@ SPEC.loader.exec_module(RUNNER)
 
 
 COMMIT = "1" * 40
-HEADER = "repository\turl\tcommit\tcommit_date\tscan_path\n"
+HEADER = (
+    "repository\turl\tcommit\tcommit_date\tscan_path\tgeneration_plan\n"
+)
 
 
 class PublicCorpusRunnerTests(unittest.TestCase):
@@ -48,7 +51,7 @@ class PublicCorpusRunnerTests(unittest.TestCase):
                 root,
                 (
                     "sample\thttps://github.com/example/sample.git\t"
-                    f"{COMMIT}\t2026-07-28\t."
+                    f"{COMMIT}\t2026-07-28\t.\t-"
                 ),
             )
             output = root / "normalized"
@@ -90,7 +93,7 @@ class PublicCorpusRunnerTests(unittest.TestCase):
                 root,
                 (
                     "sample\thttps://github.com/example/sample.git\t"
-                    f"{COMMIT}\t2026-07-28\t."
+                    f"{COMMIT}\t2026-07-28\t.\t-"
                 ),
             )
             raw = root / "private-raw"
@@ -117,7 +120,7 @@ class PublicCorpusRunnerTests(unittest.TestCase):
                 root,
                 (
                     "sample\thttps://github.com/example/sample.git\t"
-                    f"{COMMIT}\t2026-07-28\t."
+                    f"{COMMIT}\t2026-07-28\t.\t-"
                 ),
             )
 
@@ -143,7 +146,7 @@ class PublicCorpusRunnerTests(unittest.TestCase):
                 root,
                 (
                     "sample\thttps://github.com/example/sample.git\t"
-                    f"{COMMIT}\t2026-07-28\t../outside"
+                    f"{COMMIT}\t2026-07-28\t../outside\t-"
                 ),
             )
 
@@ -152,6 +155,21 @@ class PublicCorpusRunnerTests(unittest.TestCase):
                 "stay inside checkout",
             ):
                 RUNNER.load_manifest(manifest)
+
+    def test_manifest_without_generation_column_remains_supported(self) -> None:
+        with TemporaryDirectory() as temporary:
+            path = Path(temporary) / "manifest.tsv"
+            path.write_text(
+                "repository\turl\tcommit\tcommit_date\tscan_path\n"
+                "sample\thttps://github.com/example/sample.git\t"
+                f"{COMMIT}\t2026-07-28\t.\n",
+                encoding="utf-8",
+            )
+
+            entries = RUNNER.load_manifest(path)
+
+        self.assertEqual(1, len(entries))
+        self.assertEqual("-", entries[0].generation_plan)
 
     def test_scan_error_is_normalized_without_path_or_message(self) -> None:
         with TemporaryDirectory() as temporary:
@@ -163,7 +181,7 @@ class PublicCorpusRunnerTests(unittest.TestCase):
                 root,
                 (
                     "sample\thttps://github.com/example/sample.git\t"
-                    f"{COMMIT}\t2026-07-28\t."
+                    f"{COMMIT}\t2026-07-28\t.\t-"
                 ),
             )
             output = root / "normalized"
@@ -188,6 +206,73 @@ class PublicCorpusRunnerTests(unittest.TestCase):
             self.assertEqual("scan_error", record["status"])
             self.assertEqual("ScanInputError", record["error_type"])
             self.assertEqual("symlinked_directory", record["error_code"])
+
+    def test_pinned_generation_plan_is_applied_and_recorded(self) -> None:
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus_root = root / "corpus"
+            checkout = corpus_root / "sample"
+            checkout.mkdir(parents=True)
+            (checkout / "sample.control").write_text(
+                "default_version = '1.0'\nsuperuser = false\n",
+                encoding="utf-8",
+            )
+            makefile = checkout / "Makefile"
+            makefile.write_text(
+                "all: sample--1.0.sql\n",
+                encoding="utf-8",
+            )
+            digest = hashlib.sha256(makefile.read_bytes()).hexdigest()
+            plans = root / "plans"
+            plans.mkdir()
+            (plans / "sample.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "1.0",
+                        "artifacts": [
+                            {
+                                "path": "sample--1.0.sql",
+                                "inputs": [
+                                    {
+                                        "path": "Makefile",
+                                        "sha256": f"sha256:{digest}",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            manifest = self._manifest(
+                root,
+                (
+                    "sample\thttps://github.com/example/sample.git\t"
+                    f"{COMMIT}\t2026-07-28\t.\tplans/sample.json"
+                ),
+            )
+            output = root / "normalized"
+
+            with patch.object(RUNNER, "_git_head", return_value=COMMIT):
+                result = RUNNER.run_corpus(
+                    corpus_root,
+                    manifest,
+                    output,
+                )
+
+            self.assertEqual(0, result)
+            record = json.loads(
+                (output / "summary.json").read_text()
+            )["corpus"][0]
+            self.assertEqual(1, record["generated_artifacts"])
+            self.assertRegex(
+                record["generation_plan_digest"],
+                r"^sha256:[0-9a-f]{64}$",
+            )
+            self.assertNotIn(
+                "update.install-script-missing",
+                record["rule_counts"],
+            )
 
 
 if __name__ == "__main__":

@@ -17,6 +17,11 @@ import sys
 import tempfile
 from typing import Sequence
 
+from pgextassure.generation import (
+    GenerationPlan,
+    GenerationPlanError,
+    load_generation_plan,
+)
 from pgextassure.grouping import group_findings
 from pgextassure.reporting import render_json
 from pgextassure.scanner import (
@@ -33,12 +38,16 @@ DEFAULT_MANIFEST = (
     PROJECT_ROOT / "benchmarks" / "public-corpus" / "manifest.tsv"
 )
 DEFAULT_OUTPUT = PROJECT_ROOT / "benchmark-results" / "public-corpus"
-MANIFEST_FIELDS = (
+MANIFEST_REQUIRED_FIELDS = (
     "repository",
     "url",
     "commit",
     "commit_date",
     "scan_path",
+)
+MANIFEST_FIELDS = (
+    *MANIFEST_REQUIRED_FIELDS,
+    "generation_plan",
 )
 REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}\Z")
@@ -58,6 +67,7 @@ class CorpusEntry:
     commit: str
     commit_date: str
     scan_path: str
+    generation_plan: str
 
 
 def _arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -116,10 +126,12 @@ def load_manifest(path: Path) -> tuple[CorpusEntry, ...]:
 
     with handle:
         reader = csv.DictReader(handle, delimiter="\t")
-        if tuple(reader.fieldnames or ()) != MANIFEST_FIELDS:
+        header = tuple(reader.fieldnames or ())
+        if header not in {MANIFEST_REQUIRED_FIELDS, MANIFEST_FIELDS}:
             raise CorpusError(
                 "manifest header must be exactly: "
-                + "\t".join(MANIFEST_FIELDS)
+                + "\t".join(MANIFEST_REQUIRED_FIELDS)
+                + " or include the optional generation_plan column"
             )
         entries: list[CorpusEntry] = []
         seen: set[str] = set()
@@ -157,6 +169,16 @@ def load_manifest(path: Path) -> tuple[CorpusEntry, ...]:
                 row["scan_path"],
                 row_number=row_number,
             )
+            generation_plan = row.get("generation_plan") or "-"
+            if generation_plan != "-":
+                generation_plan = _validate_scan_path(
+                    generation_plan,
+                    row_number=row_number,
+                )
+                if generation_plan == ".":
+                    raise CorpusError(
+                        f"manifest row {row_number}: generation_plan must name a file"
+                    )
             seen.add(repository)
             entries.append(
                 CorpusEntry(
@@ -165,6 +187,7 @@ def load_manifest(path: Path) -> tuple[CorpusEntry, ...]:
                     commit=commit,
                     commit_date=commit_date,
                     scan_path=scan_target,
+                    generation_plan=generation_plan,
                 )
             )
     if not entries:
@@ -238,6 +261,28 @@ def _validated_targets(
     return tuple(targets)
 
 
+def _generation_plans(
+    manifest: Path,
+    entries: Sequence[CorpusEntry],
+) -> dict[str, GenerationPlan]:
+    plans: dict[str, GenerationPlan] = {}
+    root = manifest.resolve().parent
+    for entry in entries:
+        if entry.generation_plan == "-":
+            continue
+        candidate = root.joinpath(
+            *PurePosixPath(entry.generation_plan).parts
+        )
+        try:
+            candidate.resolve(strict=True).relative_to(root)
+            plans[entry.repository] = load_generation_plan(candidate)
+        except (GenerationPlanError, OSError, ValueError) as error:
+            raise CorpusError(
+                f"{entry.repository}: invalid generation plan: {error}"
+            ) from error
+    return plans
+
+
 def _atomic_write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.is_symlink():
@@ -275,17 +320,19 @@ def _normalized_record(
     root_cause_severity_counts = Counter(
         group.severity.value for group in groups
     )
-    return {
+    record = {
         "repository": entry.repository,
         "url": entry.url,
         "commit": entry.commit,
         "commit_date": entry.commit_date,
         "scan_path": entry.scan_path,
+        "generation_plan": entry.generation_plan,
         "status": "ok",
         "source_manifest_digest": report.manifest.digest,
         "files_scanned": report.summary.files_scanned,
         "findings": report.summary.findings,
         "root_causes": len(groups),
+        "generated_artifacts": 0,
         "by_severity": dict(report.summary.by_severity),
         "root_causes_by_severity": {
             severity: root_cause_severity_counts[severity]
@@ -297,6 +344,10 @@ def _normalized_record(
             sorted(root_cause_rule_counts.items())
         ),
     }
+    if report.generation is not None:
+        record["generation_plan_digest"] = report.generation["plan"]["digest"]
+        record["generated_artifacts"] = len(report.generation["artifacts"])
+    return record
 
 
 def _error_record(
@@ -309,6 +360,7 @@ def _error_record(
         "commit": entry.commit,
         "commit_date": entry.commit_date,
         "scan_path": entry.scan_path,
+        "generation_plan": entry.generation_plan,
         "status": "scan_error",
         "error_type": type(error).__name__,
         "error_code": _scan_error_code(error),
@@ -347,6 +399,7 @@ def _summary_tsv(records: Sequence[dict[str, object]]) -> str:
         "files",
         "findings",
         "root_causes",
+        "generated_artifacts",
         "finding_critical",
         "finding_high",
         "finding_medium",
@@ -376,6 +429,7 @@ def _summary_tsv(records: Sequence[dict[str, object]]) -> str:
                     str(record.get("files_scanned", "")),
                     str(record.get("findings", "")),
                     str(record.get("root_causes", "")),
+                    str(record.get("generated_artifacts", "")),
                     str(counts.get("critical", "")),
                     str(counts.get("high", "")),
                     str(counts.get("medium", "")),
@@ -399,6 +453,7 @@ def run_corpus(
 ) -> int:
     entries = load_manifest(manifest)
     targets = _validated_targets(corpus_root, entries)
+    generation_plans = _generation_plans(manifest, entries)
     records: list[dict[str, object]] = []
     had_scan_error = False
 
@@ -411,7 +466,10 @@ def run_corpus(
 
     for entry, target in targets:
         try:
-            report = scan_path(target)
+            report = scan_path(
+                target,
+                generation_plan=generation_plans.get(entry.repository),
+            )
         except ScanError as error:
             had_scan_error = True
             records.append(_error_record(entry, error))

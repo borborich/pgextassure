@@ -1,0 +1,18 @@
+{
+  "artifacts": [
+    {
+      "inputs": [
+        {
+          "path": "Makefile",
+          "sha256": "sha256:99149fdd3bb35957f05cf86564bbdcd1618e86357ce41d40e73269c3abe48bf3"
+        },
+        {
+          "path": "sql/vector.sql",
+          "sha256": "sha256:7fb5bb279ef83bf9204bfac7405bb5c9a05e49f5ac7d64d1eb4464d103b80f32"
+        }
+      ],
+      "path": "sql/vector--0.8.5.sql"
+    }
+  ],
+  "schema_version": "1.0"
+}

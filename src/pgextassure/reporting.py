@@ -141,6 +141,18 @@ def to_sarif(report: ScanReport, *, path_prefix: str = "") -> dict[str, Any]:
                 },
             }
         )
+    run_properties: dict[str, Any] = {
+        "manifestDigest": report.manifest.digest,
+        "filesScanned": report.summary.files_scanned,
+    }
+    if report.generation is not None:
+        plan = report.generation["plan"]
+        run_properties.update(
+            {
+                "generationPlanDigest": plan["digest"],
+                "generatedArtifacts": len(report.generation["artifacts"]),
+            }
+        )
     return {
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "version": "2.1.0",
@@ -157,10 +169,7 @@ def to_sarif(report: ScanReport, *, path_prefix: str = "") -> dict[str, Any]:
                     }
                 },
                 "results": results,
-                "properties": {
-                    "manifestDigest": report.manifest.digest,
-                    "filesScanned": report.summary.files_scanned,
-                },
+                "properties": run_properties,
             }
         ],
     }
@@ -188,6 +197,15 @@ def render_text(report: ScanReport) -> str:
             f"medium {counts['medium']}, low {counts['low']})"
         ),
     ]
+    if report.generation is not None:
+        lines.insert(
+            2,
+            (
+                "Generation plan: "
+                f"{report.generation['plan']['digest']} | "
+                f"Virtual artifacts: {len(report.generation['artifacts'])}"
+            ),
+        )
     for finding in report.findings:
         location = sanitize_terminal_text(finding.path)
         if finding.line is not None:

@@ -83,6 +83,20 @@ contracts remain unchanged. Its summary reports both raw finding count and
 root-cause count. Rules without an explicit semantic identity remain
 location-scoped and are never merged heuristically.
 
+If reviewed build metadata generates an install SQL or control file that is
+absent from the source tree, supply a pinned, non-executing generation plan:
+
+```bash
+pgextassure scan /path/to/postgres-extension \
+  --generation-plan /path/to/generation-plan.json \
+  --format grouped-json \
+  --output pgextassure-grouped.json
+```
+
+PgExtAssure verifies every declared input SHA-256 and may apply bounded literal
+template substitutions in memory. It never runs the build. See
+[Generation plans](docs/generation-plans.md) for the schema and trust boundary.
+
 Exit behavior is controlled by `--fail-on`:
 
 ```text
@@ -167,6 +181,7 @@ Action inputs:
 | `path` | `.` | Extension source directory or supported input file |
 | `format` | `sarif` | `text`, `json`, `grouped-json`, or `sarif` |
 | `output` | `pgextassure.sarif` | Report file; set to an empty string for stdout |
+| `generation-plan` | empty | Optional reviewed, pinned generated-artifact declaration |
 | `fail-on` | `none` | Minimum blocking severity, or `none` |
 | `python-version` | `3.11` | Python used to run PgExtAssure |
 
@@ -360,6 +375,7 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Rule reference](docs/rules.md)
 - [Threat model](docs/threat-model.md)
+- [Generation plans](docs/generation-plans.md)
 - [Roadmap](docs/roadmap.md)
 - [Public corpus pilot](benchmarks/public-corpus/README.md)
 

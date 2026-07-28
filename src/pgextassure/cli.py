@@ -9,6 +9,7 @@ import sys
 import tempfile
 from typing import Sequence
 
+from .generation import GenerationPlanError, load_generation_plan
 from .models import SEVERITY_RANK, ScanReport, Severity
 from .reporting import (
     render_grouped_json,
@@ -52,6 +53,14 @@ def _parser() -> argparse.ArgumentParser:
         "--fail-on",
         choices=("critical", "high", "medium", "low", "none"),
         default="none",
+    )
+    scan.add_argument(
+        "--generation-plan",
+        metavar="FILE",
+        help=(
+            "strict JSON declaration for pinned build-generated SQL/control "
+            "artifacts; templates are rendered in memory without executing a build"
+        ),
     )
     return parser
 
@@ -167,7 +176,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("a command is required")
 
     try:
-        report = scan_path(arguments.path)
+        generation_plan = (
+            load_generation_plan(arguments.generation_plan)
+            if arguments.generation_plan
+            else None
+        )
+        report = scan_path(
+            arguments.path,
+            generation_plan=generation_plan,
+        )
+    except GenerationPlanError as error:
+        print(
+            f"pgextassure: generation plan: {sanitize_terminal_text(error)}",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
     except ScanInputError as error:
         print(
             f"pgextassure: {sanitize_terminal_text(error)}",

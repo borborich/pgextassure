@@ -111,6 +111,12 @@ between an SQL artifact and exactly one package scope.
 This is a structural check only. PgExtAssure does not execute an upgrade, compare
 catalog objects, or prove that the SQL on a connected path is correct.
 
+When reviewed build metadata generates a missing install SQL or final control
+file, an explicit [generation plan](generation-plans.md) can add a pinned
+virtual artifact to this analysis. Declared SQL affects only graph structure;
+rendered templates are scanned at their generated path. No build command is
+executed.
+
 ## Severity interpretation
 
 | Severity | Intended interpretation |
