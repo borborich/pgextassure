@@ -118,15 +118,19 @@ class ScanReport:
     manifest: ScanManifest
     summary: ScanSummary
     findings: tuple[Finding, ...]
+    generation: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        document = {
             "schema_version": self.schema_version,
             "tool": dict(self.tool),
             "manifest": self.manifest.to_dict(),
             "summary": self.summary.to_dict(),
             "findings": [finding.to_dict() for finding in self.findings],
         }
+        if self.generation is not None:
+            document["generation"] = self.generation
+        return document
 
 
 def build_summary(

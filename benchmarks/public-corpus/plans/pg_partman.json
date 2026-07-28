@@ -1,0 +1,18 @@
+{
+  "artifacts": [
+    {
+      "inputs": [
+        {
+          "path": "Makefile",
+          "sha256": "sha256:36d256ce050091256a465f4e47407f8f80fff053fac61b963c0408d40f5b44d0"
+        },
+        {
+          "path": "pg_partman.control",
+          "sha256": "sha256:58b0138d387dc69556bc26d83779722b3d4603bc38f287dbbb7c37f8350412fd"
+        }
+      ],
+      "path": "sql/pg_partman--5.5.0.sql"
+    }
+  ],
+  "schema_version": "1.0"
+}

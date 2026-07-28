@@ -1,0 +1,22 @@
+{
+  "artifacts": [
+    {
+      "inputs": [
+        {
+          "path": "Makefile",
+          "sha256": "sha256:7b8a91667c191fd27fdd36294da8059cdcdb0160cfa803303521f36fda72c91a"
+        },
+        {
+          "path": "pgmq.control",
+          "sha256": "sha256:f5dcf780ead3f7681434aef1043e4f51397755c1a7fe42588e28ac361e6dbef6"
+        },
+        {
+          "path": "sql/pgmq.sql",
+          "sha256": "sha256:fb58c48626f068d170f37fa012ffbe5aee59ad209e9d3ac742d9dce2f3bb2993"
+        }
+      ],
+      "path": "sql/pgmq--1.12.0.sql"
+    }
+  ],
+  "schema_version": "1.0"
+}

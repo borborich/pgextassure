@@ -12,6 +12,11 @@ and releases use semantic versioning.
   complete occurrence locations, and separate finding/root-cause counts.
 - Routine-identity evidence for unsafe `SECURITY DEFINER` search paths.
 - Root-cause counts in the reproducible public-corpus runner.
+- Strict generation-plan schema for pinned virtual SQL artifacts and
+  in-memory literal rendering of control/SQL templates without executing a
+  build.
+- Generation-plan provenance in JSON, grouped JSON, SARIF, and text reports,
+  plus GitHub Action support.
 
 ## [0.1.0-alpha.1] - 2026-07-28
 

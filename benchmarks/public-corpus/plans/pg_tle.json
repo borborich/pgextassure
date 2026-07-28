@@ -1,0 +1,24 @@
+{
+  "artifacts": [
+    {
+      "inputs": [
+        {
+          "path": "Makefile",
+          "sha256": "sha256:c39a826c2e96ffc82cd0135b54893bb6e22f5038762ce0e50e1050f99ad2c835"
+        },
+        {
+          "path": "pg_tle.control.in",
+          "sha256": "sha256:e5a4a0347a9f92501b0514e3a712414375c2af90cd57fd157ef5545c1c0d635d"
+        }
+      ],
+      "path": "pg_tle.control",
+      "substitutions": {
+        "EXTNAME": "pg_tle",
+        "EXTVERSION": "1.5.2",
+        "SCHEMA": "pgtle"
+      },
+      "template": "pg_tle.control.in"
+    }
+  ],
+  "schema_version": "1.0"
+}

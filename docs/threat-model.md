@@ -73,6 +73,13 @@ behavior. PgExtAssure must treat the target as data. It must not:
 - load a target shared library;
 - follow a target-controlled instruction to access the network.
 
+An optional generation plan remains on the data side of this boundary. It can
+declare pinned virtual SQL paths or literal substitutions over a pinned
+template, but cannot invoke a command, Make target, shell expansion, compiler,
+or script. The plan is a reviewer assertion and must not be trusted merely
+because it came from the target repository. Reports bind its exact digest and
+verified input digests to the scan.
+
 Installing PgExtAssure itself is distinct from scanning the target. In the
 composite GitHub Action, the package installed from `GITHUB_ACTION_PATH` is the
 selected PgExtAssure action revision, not the target extension.
@@ -142,6 +149,10 @@ final-component output symlinks and symlinked output directories below the
 workspace boundary are rejected. The GitHub Action runs Python in isolated mode
 so caller-workspace modules and `sitecustomize.py` cannot shadow its installed
 scanner. These controls reduce exposure but are not a complete sandbox.
+
+Generation plans additionally reject duplicate/unknown fields, path traversal,
+symlinks, non-regular or stale pinned inputs, target collisions, unsafe literal
+substitutions, and excessive plan/input/rendered-output sizes and counts.
 
 ## Admission guidance
 

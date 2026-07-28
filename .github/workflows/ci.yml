@@ -148,6 +148,7 @@ jobs:
               environment="$RUNNER_TEMP/smoke-$version-$kind"
               report="$RUNNER_TEMP/smoke-$version-$kind.json"
               grouped_report="$RUNNER_TEMP/smoke-$version-$kind-grouped.json"
+              generated_report="$RUNNER_TEMP/smoke-$version-$kind-generated.json"
               "$interpreter" -m venv "$environment"
               PIP_NO_INDEX=1 "$environment/bin/python" -m pip install --no-deps "$artifact"
               "$environment/bin/pgextassure" scan tests/fixtures/safe \
@@ -158,12 +159,17 @@ jobs:
                 --format grouped-json \
                 --output "$grouped_report" \
                 --fail-on none
+              "$environment/bin/pgextassure" scan tests/fixtures/generated \
+                --generation-plan tests/fixtures/generated/generation-plan.json \
+                --format json \
+                --output "$generated_report" \
+                --fail-on high
               "$environment/bin/python" -m pgextassure scan tests/fixtures/safe \
                 --format text \
                 --fail-on high >/dev/null
               "$environment/bin/python" -c \
-                'import json, pathlib, sys; regular = json.loads(pathlib.Path(sys.argv[1]).read_text()); grouped = json.loads(pathlib.Path(sys.argv[2]).read_text()); assert regular["schema_version"] == "1.0"; assert grouped["report_type"] == "pgextassure.root-cause-groups"; assert grouped["summary"]["root_causes"] > 0' \
-                "$report" "$grouped_report"
+                'import json, pathlib, sys; regular = json.loads(pathlib.Path(sys.argv[1]).read_text()); grouped = json.loads(pathlib.Path(sys.argv[2]).read_text()); generated = json.loads(pathlib.Path(sys.argv[3]).read_text()); assert regular["schema_version"] == "1.0"; assert grouped["report_type"] == "pgextassure.root-cause-groups"; assert grouped["summary"]["root_causes"] > 0; assert generated["schema_version"] == "1.1"; assert len(generated["generation"]["artifacts"]) == 1' \
+                "$report" "$grouped_report" "$generated_report"
             done
           done
 
@@ -247,6 +253,16 @@ jobs:
           fail-on: none
           python-version: "3.11"
 
+      - name: Scan generated artifact fixture
+        uses: ./
+        with:
+          path: tests/fixtures/generated
+          generation-plan: tests/fixtures/generated/generation-plan.json
+          format: json
+          output: ${{ runner.temp }}/pgextassure-e2e/generated.json
+          fail-on: high
+          python-version: "3.11"
+
       - name: Exercise stdout mode
         uses: ./
         with:
@@ -282,6 +298,7 @@ jobs:
           SAFE_SARIF: ${{ runner.temp }}/pgextassure-e2e/safe.sarif
           SAFE_JSON: ${{ runner.temp }}/pgextassure-e2e/safe.json
           GROUPED_JSON: ${{ runner.temp }}/pgextassure-e2e/grouped.json
+          GENERATED_JSON: ${{ runner.temp }}/pgextassure-e2e/generated.json
           OPTION_LOOKING_JSON: ${{ runner.temp }}/pgextassure-e2e/option-looking.json
           VULNERABLE_JSON: ${{ runner.temp }}/pgextassure-e2e/vulnerable.json
           SHADOW_SENTINEL_DIR: ${{ runner.temp }}/pgextassure-e2e/shadow-sentinels
@@ -302,6 +319,9 @@ jobs:
           grouped = json.loads(
               Path(os.environ["GROUPED_JSON"]).read_text(encoding="utf-8")
           )
+          generated = json.loads(
+              Path(os.environ["GENERATED_JSON"]).read_text(encoding="utf-8")
+          )
           option_looking = json.loads(
               Path(os.environ["OPTION_LOOKING_JSON"]).read_text(encoding="utf-8")
           )
@@ -313,6 +333,9 @@ jobs:
           assert safe["schema_version"] == "1.0"
           assert grouped["report_type"] == "pgextassure.root-cause-groups"
           assert grouped["summary"]["root_causes"] > 0
+          assert generated["schema_version"] == "1.1"
+          assert len(generated["generation"]["artifacts"]) == 1
+          assert generated["summary"]["findings"] == 0
           assert option_looking["summary"]["findings"] == 0
           assert safe["tool"]["name"] == "pgextassure"
           assert vulnerable["summary"]["findings"] > 0

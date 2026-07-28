@@ -188,7 +188,7 @@ def grouped_report_document(report: ScanReport) -> dict[str, Any]:
 
     groups = group_findings(report.findings)
     root_cause_counts = Counter(group.severity.value for group in groups)
-    return {
+    document = {
         "schema_version": "1.0",
         "report_type": "pgextassure.root-cause-groups",
         "tool": dict(report.tool),
@@ -210,3 +210,7 @@ def grouped_report_document(report: ScanReport) -> dict[str, Any]:
         },
         "root_causes": [group.to_dict() for group in groups],
     }
+    if report.generation is not None:
+        document["generation"] = report.generation
+        document["source_report_schema_version"] = report.schema_version
+    return document

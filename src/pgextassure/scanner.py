@@ -8,6 +8,11 @@ from pathlib import Path, PurePosixPath
 import stat
 from typing import Iterable
 
+from .generation import (
+    GenerationPlan,
+    GenerationPlanError,
+    materialize_generation_plan,
+)
 from .graph import scan_update_graph
 from .models import (
     Finding,
@@ -30,7 +35,7 @@ from ._version import RELEASE_VERSION
 
 
 TOOL_VERSION = RELEASE_VERSION
-RULESET_VERSION = "2026-07-28.3"
+RULESET_VERSION = "2026-07-28.4"
 SUPPORTED_SUFFIXES = frozenset({".control", ".sql", ".c", ".h", ".rs"})
 SUPPORTED_FILENAMES = frozenset({"Cargo.toml"})
 MAX_FILES = 25_000
@@ -328,7 +333,11 @@ def _read_source(candidate: Path, relative: str, remaining_bytes: int) -> bytes:
     return raw
 
 
-def scan_path(path: str | os.PathLike[str]) -> ScanReport:
+def scan_path(
+    path: str | os.PathLike[str],
+    *,
+    generation_plan: GenerationPlan | None = None,
+) -> ScanReport:
     """Statically scan ``path`` without importing, compiling, or executing it."""
 
     requested = Path(path)
@@ -365,6 +374,28 @@ def scan_path(path: str | os.PathLike[str]) -> ScanReport:
         files=tuple(manifest_files),
     )
 
+    generation = None
+    generated_sql_paths: tuple[str, ...] = ()
+    replaced_templates: frozenset[str] = frozenset()
+    analysis_contents = dict(contents)
+    if generation_plan is not None:
+        if requested.is_file():
+            raise ScanInputError(
+                "a generation plan requires a directory scan root"
+            )
+        try:
+            generated = materialize_generation_plan(
+                generation_plan,
+                root,
+                occupied_paths=contents,
+            )
+        except GenerationPlanError as error:
+            raise ScanInputError(f"generation plan: {error}") from error
+        generation = generated.metadata
+        generated_sql_paths = generated.declared_sql_paths
+        replaced_templates = generated.replaced_templates
+        analysis_contents.update(generated.rendered_contents)
+
     controls: list[ControlDocument] = []
     secondary_controls: list[ControlDocument] = []
     findings: list[Finding] = []
@@ -378,11 +409,13 @@ def scan_path(path: str | os.PathLike[str]) -> ScanReport:
             )
         findings.extend(additions)
 
-    for relative in sorted(contents):
+    for relative in sorted(analysis_contents):
+        if relative in replaced_templates:
+            continue
         path_object = Path(relative)
         if not _is_control(path_object):
             continue
-        document = parse_control(relative, contents[relative])
+        document = parse_control(relative, analysis_contents[relative])
         if document.secondary_version is None:
             controls.append(document)
         else:
@@ -412,14 +445,18 @@ def scan_path(path: str | os.PathLike[str]) -> ScanReport:
             extend_findings(scan_control(document))
 
     scan_all_sql = requested.is_file() or not controls
-    for relative in sorted(contents):
-        text = contents[relative]
+    generated_sql = set(generated_sql_paths)
+    for relative in sorted(analysis_contents):
+        if relative in replaced_templates:
+            continue
+        text = analysis_contents[relative]
         path_object = Path(relative)
         suffix = path_object.suffix.casefold()
         if _is_control(path_object):
             continue
-        if _is_sql(path_object) and _is_extension_sql(
-            relative, controls, scan_all=scan_all_sql
+        if _is_sql(path_object) and (
+            relative in generated_sql
+            or _is_extension_sql(relative, controls, scan_all=scan_all_sql)
         ):
             sql_paths.append(relative)
             extend_findings(scan_sql(relative, text))
@@ -430,6 +467,9 @@ def scan_path(path: str | os.PathLike[str]) -> ScanReport:
         elif path_object.name == "Cargo.toml":
             extend_findings(scan_cargo(relative, text))
 
+    sql_paths.extend(
+        path for path in generated_sql_paths if path not in analysis_contents
+    )
     extend_findings(
         scan_update_graph(
             sql_paths,
@@ -439,7 +479,7 @@ def scan_path(path: str | os.PathLike[str]) -> ScanReport:
     )
     ordered = _deduplicate(findings)
     return ScanReport(
-        schema_version="1.0",
+        schema_version="1.1" if generation is not None else "1.0",
         tool={
             "name": "pgextassure",
             "version": TOOL_VERSION,
@@ -448,4 +488,5 @@ def scan_path(path: str | os.PathLike[str]) -> ScanReport:
         manifest=manifest,
         summary=build_summary(len(manifest_files), ordered),
         findings=ordered,
+        generation=generation,
     )

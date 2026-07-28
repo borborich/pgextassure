@@ -1,0 +1,4 @@
+comment = 'Generated artifact contract fixture'
+default_version = '1.0'
+relocatable = false
+superuser = false
