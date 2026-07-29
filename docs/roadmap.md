@@ -32,8 +32,9 @@ keyless-attestation enterprise pilot workflow. The SPDX inventory does not
 claim transitive dependency resolution.
 
 The current development line adds Agent Review Pack 1.0: a deterministic,
-digest-bound task queue for assisted review. It explicitly denies admission
-authority to the agent; a separately validated decision ledger remains next.
+digest-bound task queue for assisted review, plus an offline-validated Decision
+Ledger with exact task coverage and cited resolved dispositions. Both
+explicitly deny admission authority to the agent.
 
 ## Isolated dynamic assurance
 

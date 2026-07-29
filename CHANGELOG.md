@@ -11,6 +11,8 @@ and releases use semantic versioning.
 - Deterministic Agent Review Pack `1.0` output with exact grouped-report and
   source-manifest digests, one task per root cause, a closed disposition
   vocabulary, and an explicit no-admission-authority contract.
+- Offline-created and verified Agent Review Decision Ledger `1.0` with exact
+  pack/task correlation and mandatory evidence for resolved dispositions.
 
 ### Fixed
 

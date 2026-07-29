@@ -9,7 +9,10 @@ import unittest
 
 from pgextassure.evidence import verify_evidence_bundle
 from pgextassure.grouping import grouped_report_document
-from pgextassure.review import review_pack_document
+from pgextassure.review import (
+    decision_template_document,
+    review_pack_document,
+)
 from pgextassure.scanner import scan_path
 from tests.support import SAFE_ROOT, run_cli
 
@@ -21,7 +24,7 @@ class PublishedSchemaTests(unittest.TestCase):
     def test_all_schema_files_are_unique_draft_2020_12_documents(self) -> None:
         identifiers: set[str] = set()
         schemas = sorted(SCHEMA_ROOT.glob("*.schema.json"))
-        self.assertEqual(8, len(schemas))
+        self.assertEqual(9, len(schemas))
         for path in schemas:
             with self.subTest(path=path.name):
                 document = json.loads(path.read_text(encoding="utf-8"))
@@ -37,6 +40,11 @@ class PublishedSchemaTests(unittest.TestCase):
         report = scan_path(SAFE_ROOT)
         grouped = grouped_report_document(report)
         review_pack = review_pack_document(report)
+        decisions = decision_template_document(
+            review_pack,
+            "sha256:" + ("0" * 64),
+            tuple(task["task_id"] for task in review_pack["tasks"]),
+        )
 
         scan_schema = json.loads(
             (
@@ -56,6 +64,15 @@ class PublishedSchemaTests(unittest.TestCase):
                 / (
                     "agent-review-pack-"
                     f"{review_pack['schema_version']}.schema.json"
+                )
+            ).read_text(encoding="utf-8")
+        )
+        decision_schema = json.loads(
+            (
+                SCHEMA_ROOT
+                / (
+                    "agent-review-decisions-"
+                    f"{decisions['schema_version']}.schema.json"
                 )
             ).read_text(encoding="utf-8")
         )
@@ -80,6 +97,13 @@ class PublishedSchemaTests(unittest.TestCase):
         )
         self.assertTrue(
             set(review_schema["required"]).issubset(review_pack)
+        )
+        self.assertEqual(
+            decisions["schema_version"],
+            decision_schema["properties"]["schema_version"]["const"],
+        )
+        self.assertTrue(
+            set(decision_schema["required"]).issubset(decisions)
         )
 
     def test_evidence_bundle_index_has_a_published_schema(self) -> None:

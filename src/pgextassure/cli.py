@@ -45,7 +45,12 @@ from .reporting import (
     render_text,
     sanitize_terminal_text,
 )
-from .review import render_review_pack
+from .review import (
+    ReviewError,
+    render_decision_template,
+    render_review_pack,
+    verify_decision_ledger,
+)
 from .scanner import TOOL_VERSION, ScanError, ScanInputError, scan_path
 
 
@@ -164,6 +169,32 @@ def _parser() -> argparse.ArgumentParser:
         choices=POLICY_TEMPLATE_PROFILES,
     )
     policy_template.add_argument("--output", metavar="FILE")
+    review = subcommands.add_parser(
+        "review",
+        help="create and verify authority-free agent review decisions",
+    )
+    review_commands = review.add_subparsers(
+        dest="review_command",
+        required=True,
+    )
+    review_template = review_commands.add_parser(
+        "template",
+        help="create an unresolved decision ledger from a review pack",
+    )
+    review_template.add_argument("path", metavar="REVIEW_PACK")
+    review_template.add_argument("--output", metavar="FILE", required=True)
+    review_verify = review_commands.add_parser(
+        "verify",
+        help="verify a decision ledger against its exact review pack",
+    )
+    review_verify.add_argument("path", metavar="REVIEW_PACK")
+    review_verify.add_argument("ledger", metavar="DECISION_LEDGER")
+    review_verify.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
+    )
     evidence = subcommands.add_parser(
         "evidence",
         help="create or independently verify a bounded evidence bundle",
@@ -460,6 +491,53 @@ def _silence_broken_stdout() -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     arguments = parser.parse_args(argv)
+
+    if arguments.command == "review":
+        try:
+            if arguments.review_command == "template":
+                _write_output(
+                    arguments.output,
+                    render_decision_template(arguments.path),
+                )
+                return EXIT_OK
+            summary = verify_decision_ledger(
+                arguments.path,
+                arguments.ledger,
+            )
+            rendered = (
+                json.dumps(
+                    summary,
+                    ensure_ascii=False,
+                    allow_nan=False,
+                    sort_keys=True,
+                    indent=2,
+                )
+                + "\n"
+                if arguments.output_format == "json"
+                else (
+                    "PgExtAssure decision ledger 1.0: valid\n"
+                    f"Decisions: {summary['decisions']}\n"
+                    "Admission authority: no\n"
+                )
+            )
+            sys.stdout.write(rendered)
+            sys.stdout.flush()
+        except ReviewError as error:
+            print(
+                f"pgextassure: review: {sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        except BrokenPipeError:
+            _silence_broken_stdout()
+        except OSError as error:
+            print(
+                "pgextassure: cannot write output: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        return EXIT_OK
 
     if arguments.command == "policy-template":
         try:

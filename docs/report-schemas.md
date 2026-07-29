@@ -9,6 +9,7 @@ Current contracts:
 - regular scan report `1.3`;
 - grouped root-cause report `1.2`;
 - Agent Review Pack `1.0`;
+- Agent Review Decision Ledger `1.0`;
 - generation plan `1.0`;
 - baseline `1.0`;
 - suppressions `1.0`;
@@ -19,6 +20,10 @@ Agent Review Pack `1.0` is described by
 [`agent-review-pack-1.0.schema.json`](../schemas/agent-review-pack-1.0.schema.json).
 It binds an authority-free review task queue to the exact grouped-report and
 source-manifest digests.
+Agent Review Decision Ledger `1.0` is described by
+[`agent-review-decisions-1.0.schema.json`](../schemas/agent-review-decisions-1.0.schema.json).
+The offline verifier correlates its complete task set with the exact pack and
+does not convert review dispositions into admission state.
 
 SARIF remains SARIF `2.1.0` and links the standard SchemaStore schema.
 
