@@ -6,6 +6,8 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.4] - 2026-07-29
+
 ### Added
 
 - Bounded, escaped GitHub workflow annotations grouped by root cause, with
@@ -77,7 +79,8 @@ and releases use semantic versioning.
 - Gate-preserving broken-pipe handling and stricter `pg_temp` placement for
   recognized safe `SECURITY DEFINER` search paths.
 
-[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.3...HEAD
+[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.4...HEAD
+[0.1.0-alpha.4]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.3...v0.1.0-alpha.4
 [0.1.0-alpha.3]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.2...v0.1.0-alpha.3
 [0.1.0-alpha.2]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
 [0.1.0-alpha.1]: https://github.com/borborich/pgextassure/releases/tag/v0.1.0-alpha.1

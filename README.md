@@ -164,7 +164,7 @@ Remediation:
 Example summary:
 
 ```text
-PgExtAssure 0.1.0-alpha.3
+PgExtAssure 0.1.0-alpha.4
 Manifest: sha256:93c7a1aa82da96c290155124b31fcfaa15e369d105cef327c38c17e1b82d8128
 Coverage: sha256:7cd80d20a4cdb7b1b88828e3d769f36a3353e6c955e07b65f717efa0d9c62a51 | Skipped: 0
 Files: 6 | Findings: 0 (critical 0, high 0, medium 0, low 0)
@@ -195,11 +195,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: borborich/pgextassure@v0.1.0-alpha.3
+      - uses: borborich/pgextassure@v0.1.0-alpha.4
         with:
           path: .
           format: sarif
           output: pgextassure.sarif
+          annotations: active
+          max-annotations: "25"
           fail-on: high
 
       - name: Upload SARIF

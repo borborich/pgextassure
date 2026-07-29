@@ -35,10 +35,10 @@ logs and annotations should still be governed as security artifacts.
 The emitted syntax follows GitHub's
 [workflow-command contract](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands).
 
-For the composite Action on `main`:
+For the composite Action:
 
 ```yaml
-- uses: borborich/pgextassure@main
+- uses: borborich/pgextassure@v0.1.0-alpha.4
   with:
     path: .
     format: sarif
@@ -48,6 +48,5 @@ For the composite Action on `main`:
     fail-on: high
 ```
 
-The released `v0.1.0-alpha.3` tag does not yet contain these inputs. Until the
-next release, replace `main` with a reviewed commit SHA in higher-assurance
-workflows.
+Replace the version tag with the immutable release commit SHA in
+higher-assurance workflows.
