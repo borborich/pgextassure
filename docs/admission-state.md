@@ -98,8 +98,8 @@ optional top-level object.
 
 With a baseline or suppressions:
 
-- regular JSON uses schema `1.3` and adds an `admission` object;
-- grouped JSON uses schema `1.2`, retains every root cause, and annotates each
+- regular JSON uses schema `1.4` and adds an `admission` object;
+- grouped JSON uses schema `1.3`, retains every root cause, and annotates each
   disposition;
 - SARIF retains every result, records root-cause/status properties, marks
   baselined results as unchanged, and uses standard external suppressions for

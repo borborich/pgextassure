@@ -52,6 +52,7 @@ from .review import (
     verify_decision_ledger,
 )
 from .scanner import TOOL_VERSION, ScanError, ScanInputError, scan_path
+from .scope import ScopePlanError, load_scope_plan
 
 
 EXIT_OK = 0
@@ -93,6 +94,14 @@ def _parser() -> argparse.ArgumentParser:
         help=(
             "strict JSON declaration for pinned build-generated SQL/control "
             "artifacts; templates are rendered in memory without executing a build"
+        ),
+    )
+    scan.add_argument(
+        "--scope-plan",
+        metavar="FILE",
+        help=(
+            "strict digest-bound JSON declaration for scan roots and exact "
+            "filesystem exclusions"
         ),
     )
     scan.add_argument(
@@ -160,6 +169,7 @@ def _parser() -> argparse.ArgumentParser:
             "artifacts; templates are rendered in memory without executing a build"
         ),
     )
+    baseline.add_argument("--scope-plan", metavar="FILE")
     policy_template = subcommands.add_parser(
         "policy-template",
         help="write a packaged organization policy template for review",
@@ -229,6 +239,7 @@ def _parser() -> argparse.ArgumentParser:
         default="none",
     )
     evidence_create.add_argument("--generation-plan", metavar="FILE")
+    evidence_create.add_argument("--scope-plan", metavar="FILE")
     evidence_create.add_argument("--baseline", metavar="FILE")
     evidence_create.add_argument("--suppressions", metavar="FILE")
     evidence_create.add_argument("--evaluated-on", metavar="YYYY-MM-DD")
@@ -365,9 +376,15 @@ def _controlled_scan(arguments: argparse.Namespace) -> ScanReport:
         if arguments.generation_plan
         else None
     )
+    scope_plan = (
+        load_scope_plan(arguments.scope_plan)
+        if arguments.scope_plan
+        else None
+    )
     report = scan_path(
         arguments.path,
         generation_plan=generation_plan,
+        scope_plan=scope_plan,
     )
     policy = load_policy(arguments.policy) if arguments.policy else None
     if policy is not None and arguments.fail_on != "none":
@@ -432,6 +449,7 @@ def _evidence_materials(
         "baseline": arguments.baseline,
         "generation_plan": arguments.generation_plan,
         "policy": arguments.policy,
+        "scope_plan": arguments.scope_plan,
         "suppressions": arguments.suppressions,
     }
     materials: dict[str, bytes] = {}
@@ -679,9 +697,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if arguments.generation_plan
                 else None
             )
+            scope_plan = (
+                load_scope_plan(arguments.scope_plan)
+                if arguments.scope_plan
+                else None
+            )
             report = scan_path(
                 arguments.path,
                 generation_plan=generation_plan,
+                scope_plan=scope_plan,
             )
             created_on = (
                 parse_admission_date(
@@ -726,6 +750,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     except GenerationPlanError as error:
         print(
             f"pgextassure: generation plan: {sanitize_terminal_text(error)}",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    except ScopePlanError as error:
+        print(
+            f"pgextassure: scope plan: {sanitize_terminal_text(error)}",
             file=sys.stderr,
         )
         return EXIT_USAGE

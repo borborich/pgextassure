@@ -34,6 +34,10 @@ inputs:
     description: Optional pinned JSON declaration for build-generated artifacts
     required: false
     default: ""
+  scope-plan:
+    description: Optional digest-bound JSON declaration for scan roots and exclusions
+    required: false
+    default: ""
   baseline:
     description: Optional root-cause baseline created by PgExtAssure
     required: false
@@ -111,6 +115,7 @@ runs:
         PGEXTASSURE_INPUT_OUTPUT: ${{ inputs.output }}
         PGEXTASSURE_INPUT_FAIL_ON: ${{ inputs.fail-on }}
         PGEXTASSURE_INPUT_GENERATION_PLAN: ${{ inputs.generation-plan }}
+        PGEXTASSURE_INPUT_SCOPE_PLAN: ${{ inputs.scope-plan }}
         PGEXTASSURE_INPUT_BASELINE: ${{ inputs.baseline }}
         PGEXTASSURE_INPUT_SUPPRESSIONS: ${{ inputs.suppressions }}
         PGEXTASSURE_INPUT_EVALUATED_ON: ${{ inputs.evaluated-on }}
@@ -156,6 +161,9 @@ runs:
         fi
         if [[ -n "$PGEXTASSURE_INPUT_GENERATION_PLAN" ]]; then
           args+=("--generation-plan=$PGEXTASSURE_INPUT_GENERATION_PLAN")
+        fi
+        if [[ -n "$PGEXTASSURE_INPUT_SCOPE_PLAN" ]]; then
+          args+=("--scope-plan=$PGEXTASSURE_INPUT_SCOPE_PLAN")
         fi
         if [[ -n "$PGEXTASSURE_INPUT_BASELINE" ]]; then
           args+=("--baseline=$PGEXTASSURE_INPUT_BASELINE")

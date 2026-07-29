@@ -1,0 +1,185 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/scan-report-1.4.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "digest": {"pattern": "^sha256:[0-9a-f]{64}$", "type": "string"},
+    "severity": {"enum": ["critical", "high", "medium", "low"]},
+    "tool": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {"const": "pgextassure"},
+        "ruleset_version": {"minLength": 1, "type": "string"},
+        "version": {"minLength": 1, "type": "string"}
+      },
+      "required": ["name", "version", "ruleset_version"],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "admission": {"type": "object"},
+    "coverage": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {"const": "sha256"},
+        "analyzed_files": {"minimum": 1, "type": "integer"},
+        "digest": {"$ref": "#/$defs/digest"},
+        "skipped_count": {"minimum": 0, "type": "integer"},
+        "skipped_files": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"enum": ["regular", "symlink", "other"]},
+              "path": {"minLength": 1, "type": "string"},
+              "reason": {
+                "enum": [
+                  "unsupported_file_type",
+                  "unsupported_symlink",
+                  "unsupported_filesystem_object",
+                  "scope_excluded"
+                ]
+              },
+              "size": {"minimum": 0, "type": "integer"}
+            },
+            "required": ["path", "kind", "reason"],
+            "type": "object"
+          },
+          "maxItems": 100000,
+          "type": "array"
+        }
+      },
+      "required": [
+        "algorithm",
+        "digest",
+        "analyzed_files",
+        "skipped_count",
+        "skipped_files"
+      ],
+      "type": "object"
+    },
+    "findings": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "capability": {"type": "string"},
+          "evidence": {"type": "string"},
+          "line": {"minimum": 1, "type": ["integer", "null"]},
+          "message": {"type": "string"},
+          "path": {"type": "string"},
+          "remediation": {"type": "string"},
+          "rule_id": {"type": "string"},
+          "severity": {"$ref": "#/$defs/severity"},
+          "title": {"type": "string"}
+        },
+        "required": [
+          "rule_id",
+          "severity",
+          "title",
+          "message",
+          "path",
+          "line",
+          "evidence",
+          "capability",
+          "remediation"
+        ],
+        "type": "object"
+      },
+      "maxItems": 10000,
+      "type": "array"
+    },
+    "generation": {"type": "object"},
+    "manifest": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {"const": "sha256"},
+        "digest": {"$ref": "#/$defs/digest"},
+        "files": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "path": {"type": "string"},
+              "sha256": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+              "size": {"minimum": 0, "type": "integer"}
+            },
+            "required": ["path", "size", "sha256"],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["algorithm", "digest", "files"],
+      "type": "object"
+    },
+    "policy": {"type": "object"},
+    "schema_version": {"const": "1.4"},
+    "scope": {
+      "additionalProperties": false,
+      "properties": {
+        "exclusions": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"enum": ["regular", "symlink"]},
+              "path": {"minLength": 1, "type": "string"},
+              "sha256": {"$ref": "#/$defs/digest"}
+            },
+            "required": ["path", "kind", "sha256"],
+            "type": "object"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "plan": {
+          "additionalProperties": false,
+          "properties": {
+            "algorithm": {"const": "sha256"},
+            "digest": {"$ref": "#/$defs/digest"}
+          },
+          "required": ["algorithm", "digest"],
+          "type": "object"
+        },
+        "roots": {
+          "items": {"minLength": 1, "type": "string"},
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array"
+        },
+        "schema_version": {"const": "1.0"}
+      },
+      "required": ["schema_version", "plan", "roots", "exclusions"],
+      "type": "object"
+    },
+    "summary": {
+      "additionalProperties": false,
+      "properties": {
+        "by_severity": {
+          "additionalProperties": false,
+          "properties": {
+            "critical": {"minimum": 0, "type": "integer"},
+            "high": {"minimum": 0, "type": "integer"},
+            "low": {"minimum": 0, "type": "integer"},
+            "medium": {"minimum": 0, "type": "integer"}
+          },
+          "required": ["critical", "high", "medium", "low"],
+          "type": "object"
+        },
+        "capabilities": {"items": {"type": "string"}, "type": "array"},
+        "files_scanned": {"minimum": 1, "type": "integer"},
+        "findings": {"minimum": 0, "type": "integer"}
+      },
+      "required": ["files_scanned", "findings", "by_severity", "capabilities"],
+      "type": "object"
+    },
+    "tool": {"$ref": "#/$defs/tool"}
+  },
+  "required": [
+    "schema_version",
+    "tool",
+    "manifest",
+    "coverage",
+    "summary",
+    "findings"
+  ],
+  "title": "PgExtAssure scan report 1.4",
+  "type": "object"
+}

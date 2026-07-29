@@ -51,7 +51,7 @@ Every bundle contains:
 - `report.json`: canonical regular PgExtAssure report;
 - `sbom.spdx.json`: SPDX 2.3 analyzed-source inventory.
 
-When used, the exact raw JSON bytes of a generation plan, baseline,
+When used, the exact raw JSON bytes of a generation plan, scope plan, baseline,
 suppressions file, and organization policy are stored under `inputs/`. Their
 SHA-256 values must match the provenance retained by `report.json`.
 

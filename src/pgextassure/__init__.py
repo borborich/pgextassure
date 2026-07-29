@@ -34,6 +34,13 @@ from .evidence import (
 )
 from .models import Finding, ScanManifest, ScanReport, Severity
 from .scanner import ScanError, scan_path
+from .scope import (
+    ScopeExclusion,
+    ScopePlan,
+    ScopePlanError,
+    load_scope_plan,
+    parse_scope_plan,
+)
 from ._version import PACKAGE_VERSION, RELEASE_VERSION
 
 __all__ = [
@@ -53,6 +60,9 @@ __all__ = [
     "ScanError",
     "ScanManifest",
     "ScanReport",
+    "ScopeExclusion",
+    "ScopePlan",
+    "ScopePlanError",
     "Severity",
     "Suppression",
     "SuppressionSet",
@@ -65,6 +75,8 @@ __all__ = [
     "load_generation_plan",
     "load_baseline",
     "load_suppressions",
+    "load_scope_plan",
+    "parse_scope_plan",
     "scan_path",
     "verify_evidence_bundle",
 ]

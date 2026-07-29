@@ -61,6 +61,7 @@ class Baseline:
     ruleset_version: str
     source_manifest_digest: str
     generation_plan_digest: str | None
+    scope_plan_digest: str | None
     entries: tuple[BaselineEntry, ...]
 
 
@@ -278,7 +279,11 @@ def load_baseline(path: str | os.PathLike[str]) -> Baseline:
         document["source"],
         label="baseline source",
         allowed=frozenset(
-            {"manifest_digest", "generation_plan_digest"}
+            {
+                "manifest_digest",
+                "generation_plan_digest",
+                "scope_plan_digest",
+            }
         ),
         required=frozenset({"manifest_digest"}),
     )
@@ -296,6 +301,12 @@ def load_baseline(path: str | os.PathLike[str]) -> Baseline:
         raise AdmissionError(
             "baseline source generation_plan_digest is invalid"
         )
+    scope_digest = source.get("scope_plan_digest")
+    if scope_digest is not None and (
+        not isinstance(scope_digest, str)
+        or not _DIGEST_PATTERN.fullmatch(scope_digest)
+    ):
+        raise AdmissionError("baseline source scope_plan_digest is invalid")
     raw_entries = document["root_causes"]
     if not isinstance(raw_entries, list):
         raise AdmissionError("baseline root_causes must be a list")
@@ -324,6 +335,7 @@ def load_baseline(path: str | os.PathLike[str]) -> Baseline:
         ruleset_version=ruleset_version,
         source_manifest_digest=manifest_digest,
         generation_plan_digest=generation_digest,
+        scope_plan_digest=scope_digest,
         entries=tuple(entries),
     )
 
@@ -447,6 +459,8 @@ def create_baseline_document(
     }
     if report.generation is not None:
         source["generation_plan_digest"] = report.generation["plan"]["digest"]
+    if report.scope is not None:
+        source["scope_plan_digest"] = report.scope["plan"]["digest"]
     return {
         "schema_version": "1.0",
         "created_on": created_on.isoformat(),
@@ -597,6 +611,8 @@ def apply_admission(
             baseline_metadata["generation_plan_digest"] = (
                 baseline.generation_plan_digest
             )
+        if baseline.scope_plan_digest is not None:
+            baseline_metadata["scope_plan_digest"] = baseline.scope_plan_digest
         admission["baseline"] = baseline_metadata
     if suppressions is not None:
         admission["suppressions"] = {

@@ -31,6 +31,7 @@
               "inputs/baseline.json",
               "inputs/generation-plan.json",
               "inputs/policy.json",
+              "inputs/scope-plan.json",
               "inputs/suppressions.json",
               "report.json",
               "sbom.spdx.json"
@@ -41,7 +42,7 @@
         "required": ["name", "media_type", "size", "digest"],
         "type": "object"
       },
-      "maxItems": 6,
+      "maxItems": 7,
       "minItems": 2,
       "type": "array",
       "uniqueItems": true

@@ -80,6 +80,12 @@ or script. The plan is a reviewer assertion and must not be trusted merely
 because it came from the target repository. Reports bind its exact digest and
 verified input digests to the scan.
 
+An optional scope plan is also reviewer-controlled data. It can select bounded,
+non-overlapping relative roots and exclude only exact regular files or
+symlinks pinned by SHA-256. It cannot use globs, follow symlinks, or silently
+accept stale exclusions. Reports and evidence bundles bind its exact bytes to
+the result.
+
 Installing PgExtAssure itself is distinct from scanning the target. In the
 composite GitHub Action, the package installed from `GITHUB_ACTION_PATH` is the
 selected PgExtAssure action revision, not the target extension.

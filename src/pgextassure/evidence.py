@@ -16,6 +16,7 @@ import zipfile
 
 from .models import ScanReport
 from .source import canonical_json_bytes
+from .scope import ScopePlanError, parse_scope_plan
 
 
 BUNDLE_SCHEMA_VERSION = "1.0"
@@ -34,6 +35,7 @@ _MATERIAL_NAMES = {
     "baseline": "inputs/baseline.json",
     "generation_plan": "inputs/generation-plan.json",
     "policy": "inputs/policy.json",
+    "scope_plan": "inputs/scope-plan.json",
     "suppressions": "inputs/suppressions.json",
 }
 
@@ -268,6 +270,8 @@ def expected_material_digests(report: ScanReport) -> dict[str, str]:
     """Return exact configuration-file digests retained by the report."""
 
     expected: dict[str, str] = {}
+    if report.scope is not None:
+        expected["scope_plan"] = report.scope["plan"]["digest"]
     if report.generation is not None:
         expected["generation_plan"] = report.generation["plan"]["digest"]
     if report.admission is not None:
@@ -865,6 +869,7 @@ def _verify_evidence_bundle(
                 "coverage",
                 "summary",
                 "findings",
+                "scope",
                 "generation",
                 "admission",
                 "policy",
@@ -881,7 +886,7 @@ def _verify_evidence_bundle(
             }
         ),
     )
-    if report["schema_version"] != "1.3" or report["tool"] != tool:
+    if report["schema_version"] != "1.4" or report["tool"] != tool:
         raise EvidenceError("bundle report version/tool does not match")
     _verify_manifest_and_coverage(report)
     _verify_findings_and_summary(report)
@@ -891,6 +896,10 @@ def _verify_evidence_bundle(
         raise EvidenceError("bundle subject coverage does not match the report")
 
     expected_inputs: dict[str, str] = {}
+    if "scope" in report:
+        expected_inputs["inputs/scope-plan.json"] = report["scope"]["plan"][
+            "digest"
+        ]
     if "generation" in report:
         expected_inputs["inputs/generation-plan.json"] = report["generation"][
             "plan"
@@ -959,6 +968,15 @@ def _verify_evidence_bundle(
         if _digest_bytes(files[name]) != digest:
             raise EvidenceError(f"{name} does not match the report digest")
         _load_json(files[name], label=name)
+    if "scope" in report:
+        try:
+            verified_scope = parse_scope_plan(files["inputs/scope-plan.json"])
+        except ScopePlanError as error:
+            raise EvidenceError(f"invalid bundled scope plan: {error}") from error
+        if verified_scope.metadata() != report["scope"]:
+            raise EvidenceError(
+                "bundled scope plan does not match report scope metadata"
+            )
 
     sbom = _plain_object(
         _load_json(files["sbom.spdx.json"], label="sbom.spdx.json"),

@@ -31,6 +31,7 @@ from pgextassure.scanner import (
     ScanInputError,
     scan_path,
 )
+from pgextassure.scope import ScopePlan, ScopePlanError, load_scope_plan
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -48,7 +49,14 @@ MANIFEST_REQUIRED_FIELDS = (
 MANIFEST_FIELDS = (
     *MANIFEST_REQUIRED_FIELDS,
     "generation_plan",
+    "scope_plan",
 )
+MANIFEST_HEADERS = {
+    MANIFEST_REQUIRED_FIELDS,
+    (*MANIFEST_REQUIRED_FIELDS, "generation_plan"),
+    (*MANIFEST_REQUIRED_FIELDS, "scope_plan"),
+    MANIFEST_FIELDS,
+}
 REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}\Z")
 GITHUB_URL_PATTERN = re.compile(
@@ -68,6 +76,7 @@ class CorpusEntry:
     commit_date: str
     scan_path: str
     generation_plan: str
+    scope_plan: str
 
 
 def _arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -127,11 +136,11 @@ def load_manifest(path: Path) -> tuple[CorpusEntry, ...]:
     with handle:
         reader = csv.DictReader(handle, delimiter="\t")
         header = tuple(reader.fieldnames or ())
-        if header not in {MANIFEST_REQUIRED_FIELDS, MANIFEST_FIELDS}:
+        if header not in MANIFEST_HEADERS:
             raise CorpusError(
                 "manifest header must be exactly: "
                 + "\t".join(MANIFEST_REQUIRED_FIELDS)
-                + " or include the optional generation_plan column"
+                + " with optional generation_plan and scope_plan columns"
             )
         entries: list[CorpusEntry] = []
         seen: set[str] = set()
@@ -179,6 +188,16 @@ def load_manifest(path: Path) -> tuple[CorpusEntry, ...]:
                     raise CorpusError(
                         f"manifest row {row_number}: generation_plan must name a file"
                     )
+            scope_plan = row.get("scope_plan") or "-"
+            if scope_plan != "-":
+                scope_plan = _validate_scan_path(
+                    scope_plan,
+                    row_number=row_number,
+                )
+                if scope_plan == ".":
+                    raise CorpusError(
+                        f"manifest row {row_number}: scope_plan must name a file"
+                    )
             seen.add(repository)
             entries.append(
                 CorpusEntry(
@@ -188,6 +207,7 @@ def load_manifest(path: Path) -> tuple[CorpusEntry, ...]:
                     commit_date=commit_date,
                     scan_path=scan_target,
                     generation_plan=generation_plan,
+                    scope_plan=scope_plan,
                 )
             )
     if not entries:
@@ -283,6 +303,26 @@ def _generation_plans(
     return plans
 
 
+def _scope_plans(
+    manifest: Path,
+    entries: Sequence[CorpusEntry],
+) -> dict[str, ScopePlan]:
+    plans: dict[str, ScopePlan] = {}
+    root = manifest.resolve().parent
+    for entry in entries:
+        if entry.scope_plan == "-":
+            continue
+        candidate = root.joinpath(*PurePosixPath(entry.scope_plan).parts)
+        try:
+            candidate.resolve(strict=True).relative_to(root)
+            plans[entry.repository] = load_scope_plan(candidate)
+        except (ScopePlanError, OSError, ValueError) as error:
+            raise CorpusError(
+                f"{entry.repository}: invalid scope plan: {error}"
+            ) from error
+    return plans
+
+
 def _atomic_write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.is_symlink():
@@ -327,6 +367,7 @@ def _normalized_record(
         "commit_date": entry.commit_date,
         "scan_path": entry.scan_path,
         "generation_plan": entry.generation_plan,
+        "scope_plan": entry.scope_plan,
         "status": "ok",
         "source_manifest_digest": report.manifest.digest,
         "files_scanned": report.summary.files_scanned,
@@ -347,6 +388,9 @@ def _normalized_record(
     if report.generation is not None:
         record["generation_plan_digest"] = report.generation["plan"]["digest"]
         record["generated_artifacts"] = len(report.generation["artifacts"])
+    if report.scope is not None:
+        record["scope_plan_digest"] = report.scope["plan"]["digest"]
+        record["scope_exclusions"] = len(report.scope["exclusions"])
     return record
 
 
@@ -361,6 +405,7 @@ def _error_record(
         "commit_date": entry.commit_date,
         "scan_path": entry.scan_path,
         "generation_plan": entry.generation_plan,
+        "scope_plan": entry.scope_plan,
         "status": "scan_error",
         "error_type": type(error).__name__,
         "error_code": _scan_error_code(error),
@@ -454,6 +499,7 @@ def run_corpus(
     entries = load_manifest(manifest)
     targets = _validated_targets(corpus_root, entries)
     generation_plans = _generation_plans(manifest, entries)
+    scope_plans = _scope_plans(manifest, entries)
     records: list[dict[str, object]] = []
     had_scan_error = False
 
@@ -469,6 +515,7 @@ def run_corpus(
             report = scan_path(
                 target,
                 generation_plan=generation_plans.get(entry.repository),
+                scope_plan=scope_plans.get(entry.repository),
             )
         except ScanError as error:
             had_scan_error = True

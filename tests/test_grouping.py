@@ -135,7 +135,7 @@ class RootCauseGroupingTests(unittest.TestCase):
             report = scan_path(root)
             document = grouped_report_document(report)
 
-        self.assertEqual("1.2", document["schema_version"])
+        self.assertEqual("1.3", document["schema_version"])
         self.assertEqual(
             "pgextassure.root-cause-groups",
             document["report_type"],

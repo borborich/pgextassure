@@ -64,7 +64,7 @@ class PackagingContractTests(unittest.TestCase):
         }
 
         self.assertIn(
-            "pgextassure/schemas/scan-report-1.3.schema.json",
+            "pgextassure/schemas/scan-report-1.4.schema.json",
             wheel_files,
         )
         self.assertIn(
@@ -80,7 +80,7 @@ class PackagingContractTests(unittest.TestCase):
             wheel_files,
         )
         self.assertIn(
-            "schemas/scan-report-1.3.schema.json",
+            "schemas/scan-report-1.4.schema.json",
             sdist_paths,
         )
         self.assertIn(

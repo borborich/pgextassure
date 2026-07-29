@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import hashlib
 import os
 from pathlib import Path, PurePosixPath
 import stat
@@ -33,6 +34,7 @@ from .rules import (
     scan_sql,
 )
 from .source import canonical_json_bytes, sha256_hex
+from .scope import ScopeExclusion, ScopePlan
 from ._version import RELEASE_VERSION
 
 
@@ -48,6 +50,8 @@ MAX_RELATIVE_PATH_BYTES = 4_096
 MAX_FILE_BYTES = 8 * 1024 * 1024
 MAX_TOTAL_BYTES = 256 * 1024 * 1024
 MAX_FINDINGS = 10_000
+MAX_EXCLUDED_FILE_BYTES = 64 * 1024 * 1024
+MAX_TOTAL_EXCLUDED_BYTES = 256 * 1024 * 1024
 
 
 class ScanError(RuntimeError):
@@ -276,6 +280,272 @@ def _discover(path: Path) -> tuple[Path, list[Path], list[SkippedFile]]:
     return path, discovered, skipped
 
 
+def _scope_root(base: Path, relative: str) -> Path:
+    candidate = base
+    if relative == ".":
+        return candidate
+    for part in PurePosixPath(relative).parts:
+        candidate /= part
+        try:
+            metadata = candidate.lstat()
+        except FileNotFoundError as error:
+            raise ScanInputError(
+                f"scope root does not exist: {relative}"
+            ) from error
+        except OSError as error:
+            raise ScanError(
+                f"cannot inspect scope root {relative}: {error}"
+            ) from error
+        if stat.S_ISLNK(metadata.st_mode):
+            raise ScanInputError(f"refusing symlink in scope root: {relative}")
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise ScanInputError(f"scope root is not a directory: {relative}")
+    return candidate
+
+
+def _excluded_digest(
+    candidate: Path,
+    relative: str,
+    kind: str,
+) -> tuple[str, int | None]:
+    if kind == "symlink":
+        try:
+            target = os.readlink(candidate)
+        except OSError as error:
+            raise ScanError(
+                f"cannot read excluded symlink {relative}: {error}"
+            ) from error
+        raw_target = os.fsencode(target)
+        return "sha256:" + hashlib.sha256(raw_target).hexdigest(), None
+
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    flags |= getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor: int | None = None
+    try:
+        descriptor = os.open(candidate, flags)
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ScanInputError(
+                f"scope exclusion changed type: {relative} is not regular"
+            )
+        if metadata.st_size > MAX_EXCLUDED_FILE_BYTES:
+            raise ScanInputError(
+                f"excluded file {relative} exceeds the "
+                f"{MAX_EXCLUDED_FILE_BYTES}-byte verification limit"
+            )
+        with os.fdopen(descriptor, "rb", closefd=True) as handle:
+            descriptor = None
+            raw = handle.read(MAX_EXCLUDED_FILE_BYTES + 1)
+    except ScanInputError:
+        raise
+    except OSError as error:
+        raise ScanError(f"cannot read excluded file {relative}: {error}") from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+    if len(raw) > MAX_EXCLUDED_FILE_BYTES:
+        raise ScanInputError(
+            f"excluded file {relative} exceeds the "
+            f"{MAX_EXCLUDED_FILE_BYTES}-byte verification limit"
+        )
+    return "sha256:" + hashlib.sha256(raw).hexdigest(), len(raw)
+
+
+def _consume_exclusion(
+    candidate: Path,
+    relative: str,
+    exclusion: ScopeExclusion,
+    used: set[str],
+) -> SkippedFile:
+    kind = exclusion.kind
+    expected = exclusion.sha256
+    try:
+        metadata = candidate.lstat()
+    except FileNotFoundError as error:
+        raise ScanInputError(
+            f"scope exclusion does not exist: {relative}"
+        ) from error
+    except OSError as error:
+        raise ScanError(
+            f"cannot inspect scope exclusion {relative}: {error}"
+        ) from error
+    actual_kind = (
+        "symlink"
+        if stat.S_ISLNK(metadata.st_mode)
+        else "regular"
+        if stat.S_ISREG(metadata.st_mode)
+        else "other"
+    )
+    if actual_kind != kind:
+        raise ScanInputError(
+            f"scope exclusion changed type: {relative} is {actual_kind}, "
+            f"expected {kind}"
+        )
+    digest, size = _excluded_digest(candidate, relative, kind)
+    if digest != expected:
+        raise ScanInputError(
+            f"scope exclusion digest mismatch for {relative}: "
+            f"expected {expected}, got {digest}"
+        )
+    if relative in used:
+        raise ScanInputError(f"scope exclusion encountered twice: {relative}")
+    used.add(relative)
+    return SkippedFile(
+        path=relative,
+        kind=kind,
+        reason="scope_excluded",
+        size=size,
+    )
+
+
+def _discover_scoped(
+    path: Path,
+    plan: ScopePlan,
+) -> tuple[Path, list[Path], list[SkippedFile]]:
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        raise ScanInputError(f"scan path does not exist: {path}")
+    except OSError as error:
+        raise ScanError(f"cannot inspect scan path {path}: {error}") from error
+    if stat.S_ISLNK(metadata.st_mode):
+        raise ScanInputError(f"refusing symlink scan root: {path}")
+    if not stat.S_ISDIR(metadata.st_mode):
+        raise ScanInputError("a scope plan requires a directory scan root")
+
+    exclusions = {item.path: item for item in plan.exclusions}
+    used: set[str] = set()
+    discovered: list[Path] = []
+    skipped: list[SkippedFile] = []
+    entries_seen = 0
+    directories_seen = 0
+    excluded_bytes = 0
+
+    def walk_error(error: OSError) -> None:
+        location = error.filename or path
+        raise ScanError(f"cannot traverse {location}: {error}") from error
+
+    for declared_root in plan.roots:
+        walk_root = _scope_root(path, declared_root)
+        directories_seen += 1
+        for directory, dirnames, filenames in os.walk(
+            walk_root,
+            followlinks=False,
+            onerror=walk_error,
+        ):
+            entries_seen += len(dirnames) + len(filenames)
+            if entries_seen > MAX_ENTRIES:
+                raise ScanInputError(
+                    f"scan exceeds the {MAX_ENTRIES}-entry filesystem limit"
+                )
+            directories_seen += len(dirnames)
+            if directories_seen > MAX_DIRECTORIES:
+                raise ScanInputError(
+                    f"scan exceeds the {MAX_DIRECTORIES}-directory limit"
+                )
+
+            retained_directories: list[str] = []
+            for name in sorted(dirnames):
+                candidate = Path(directory) / name
+                relative = _relative(path, candidate)
+                _validate_relative_path(relative)
+                exclusion = exclusions.get(relative)
+                if exclusion is not None:
+                    if exclusion.kind != "symlink":
+                        raise ScanInputError(
+                            f"directory scope exclusion must be a symlink: {relative}"
+                        )
+                    skipped.append(
+                        _consume_exclusion(candidate, relative, exclusion, used)
+                    )
+                    continue
+                try:
+                    candidate_metadata = candidate.lstat()
+                except OSError as error:
+                    raise ScanError(f"cannot inspect {candidate}: {error}") from error
+                if stat.S_ISLNK(candidate_metadata.st_mode):
+                    raise ScanInputError(
+                        f"refusing symlinked directory in scan tree: {relative}"
+                    )
+                retained_directories.append(name)
+            dirnames[:] = retained_directories
+
+            for name in sorted(filenames):
+                candidate = Path(directory) / name
+                relative = _relative(path, candidate)
+                _validate_relative_path(relative)
+                exclusion = exclusions.get(relative)
+                if exclusion is not None:
+                    skipped_file = _consume_exclusion(
+                        candidate,
+                        relative,
+                        exclusion,
+                        used,
+                    )
+                    excluded_bytes += skipped_file.size or 0
+                    if excluded_bytes > MAX_TOTAL_EXCLUDED_BYTES:
+                        raise ScanInputError(
+                            "scope exclusions exceed the "
+                            f"{MAX_TOTAL_EXCLUDED_BYTES}-byte total "
+                            "verification limit"
+                        )
+                    skipped.append(skipped_file)
+                    continue
+                try:
+                    candidate_metadata = candidate.lstat()
+                except OSError as error:
+                    raise ScanError(f"cannot inspect {candidate}: {error}") from error
+                if not is_supported(candidate):
+                    if stat.S_ISREG(candidate_metadata.st_mode):
+                        skipped.append(
+                            SkippedFile(
+                                path=relative,
+                                kind="regular",
+                                reason="unsupported_file_type",
+                                size=candidate_metadata.st_size,
+                            )
+                        )
+                    elif stat.S_ISLNK(candidate_metadata.st_mode):
+                        skipped.append(
+                            SkippedFile(
+                                path=relative,
+                                kind="symlink",
+                                reason="unsupported_symlink",
+                            )
+                        )
+                    else:
+                        skipped.append(
+                            SkippedFile(
+                                path=relative,
+                                kind="other",
+                                reason="unsupported_filesystem_object",
+                            )
+                        )
+                    continue
+                if stat.S_ISLNK(candidate_metadata.st_mode):
+                    raise ScanInputError(
+                        f"refusing symlinked supported source file: {relative}"
+                    )
+                if not stat.S_ISREG(candidate_metadata.st_mode):
+                    raise ScanInputError(
+                        f"refusing non-regular source file: {relative}"
+                    )
+                discovered.append(candidate)
+                if len(discovered) > MAX_FILES:
+                    raise ScanInputError(
+                        f"scan exceeds the {MAX_FILES} supported-file limit"
+                    )
+
+    missing = sorted(set(exclusions) - used)
+    if missing:
+        preview = ", ".join(missing[:3])
+        suffix = "" if len(missing) <= 3 else f" (+{len(missing) - 3} more)"
+        raise ScanInputError(f"unused scope exclusion: {preview}{suffix}")
+    if not discovered:
+        raise ScanInputError(f"no supported source files found under scope: {path}")
+    return path, discovered, skipped
+
+
 def _relative(root: Path, candidate: Path) -> str:
     try:
         return candidate.relative_to(root).as_posix()
@@ -365,11 +635,16 @@ def scan_path(
     path: str | os.PathLike[str],
     *,
     generation_plan: GenerationPlan | None = None,
+    scope_plan: ScopePlan | None = None,
 ) -> ScanReport:
     """Statically scan ``path`` without importing, compiling, or executing it."""
 
     requested = Path(path)
-    root, files, skipped_files = _discover(requested)
+    root, files, skipped_files = (
+        _discover_scoped(requested, scope_plan)
+        if scope_plan is not None
+        else _discover(requested)
+    )
     manifest_files: list[ManifestFile] = []
     contents: dict[str, str] = {}
     total_bytes = 0
@@ -421,6 +696,10 @@ def scan_path(
         if requested.is_file():
             raise ScanInputError(
                 "a generation plan requires a directory scan root"
+            )
+        if scope_plan is not None and scope_plan.roots != (".",):
+            raise ScanInputError(
+                "a generation plan can only be combined with scope root '.'"
             )
         try:
             generated = materialize_generation_plan(
@@ -518,7 +797,7 @@ def scan_path(
     )
     ordered = _deduplicate(findings)
     return ScanReport(
-        schema_version="1.3",
+        schema_version="1.4",
         tool={
             "name": "pgextassure",
             "version": TOOL_VERSION,
@@ -528,5 +807,6 @@ def scan_path(
         coverage=coverage,
         summary=build_summary(len(manifest_files), ordered),
         findings=ordered,
+        scope=scope_plan.metadata() if scope_plan is not None else None,
         generation=generation,
     )

@@ -1,0 +1,43 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/scope-plan-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "path": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "exclusions": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {"enum": ["regular", "symlink"]},
+          "path": {"$ref": "#/$defs/path"},
+          "sha256": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": ["path", "kind", "sha256"],
+        "type": "object"
+      },
+      "maxItems": 4096,
+      "type": "array"
+    },
+    "roots": {
+      "items": {"$ref": "#/$defs/path"},
+      "maxItems": 64,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "schema_version": {"const": "1.0"}
+  },
+  "required": ["schema_version", "roots", "exclusions"],
+  "title": "PgExtAssure scope plan 1.0",
+  "type": "object"
+}
