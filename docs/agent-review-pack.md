@@ -36,10 +36,29 @@ not a policy decision, suppression, baseline, certificate, or proof of
 exploitability. An authorized person must verify cited evidence and apply a
 separate organization policy before admission.
 
-The current contract intentionally exports immutable tasks only. A future
-decision-ledger contract will validate agent responses against the pack digest,
-require an exact decision for each root cause, and keep human approval
-separate from the agent-authored analysis.
+Create a deterministic unresolved Decision Ledger:
+
+```bash
+pgextassure review template pgextassure-review.json \
+  --output pgextassure-decisions.json
+```
+
+An agent may replace `unresolved` entries using the closed disposition
+vocabulary. Every resolved entry requires a non-placeholder reviewer,
+rationale, and at least one citation. Verify the result offline:
+
+```bash
+pgextassure review verify \
+  pgextassure-review.json \
+  pgextassure-decisions.json
+```
+
+Verification rejects stale pack digests, missing, extra, or duplicate tasks,
+unknown fields or dispositions, unbounded text, and resolved decisions without
+review evidence. A valid ledger still states `can_grant_admission: false`.
+Human approval remains separate from agent-authored analysis.
 
 The published Draft 2020-12 schema is
 [`schemas/agent-review-pack-1.0.schema.json`](../schemas/agent-review-pack-1.0.schema.json).
+The Decision Ledger schema is
+[`schemas/agent-review-decisions-1.0.schema.json`](../schemas/agent-review-decisions-1.0.schema.json).

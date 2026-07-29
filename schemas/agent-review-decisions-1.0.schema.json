@@ -1,0 +1,82 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/schemas/agent-review-decisions-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authority": {
+      "additionalProperties": false,
+      "properties": {
+        "can_grant_admission": {"const": false}
+      },
+      "required": ["can_grant_admission"],
+      "type": "object"
+    },
+    "decision_type": {"const": "pgextassure.agent-review-decisions"},
+    "decisions": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "citations": {
+            "items": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "disposition": {
+            "enum": [
+              "accepted-capability",
+              "actionable-defect",
+              "false-positive",
+              "unresolved"
+            ]
+          },
+          "rationale": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "reviewer": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "task_id": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "disposition",
+          "rationale",
+          "citations",
+          "reviewer"
+        ],
+        "type": "object"
+      },
+      "maxItems": 10000,
+      "type": "array"
+    },
+    "grouped_report_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "review_pack_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "schema_version": {"const": "1.0"}
+  },
+  "required": [
+    "schema_version",
+    "decision_type",
+    "review_pack_digest",
+    "grouped_report_digest",
+    "authority",
+    "decisions"
+  ],
+  "type": "object"
+}

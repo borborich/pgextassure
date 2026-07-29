@@ -96,6 +96,19 @@ manifest, carries a closed disposition vocabulary, contains no source-file
 payloads, and explicitly cannot grant admission. See
 [Agent Review Pack](docs/agent-review-pack.md).
 
+Create and verify the separate agent-authored Decision Ledger:
+
+```bash
+pgextassure review template pgextassure-review.json \
+  --output pgextassure-decisions.json
+pgextassure review verify \
+  pgextassure-review.json \
+  pgextassure-decisions.json
+```
+
+Verification requires exact task coverage and citations for every resolved
+disposition. A structurally valid ledger still has no admission authority.
+
 If reviewed build metadata generates an install SQL or control file that is
 absent from the source tree, supply a pinned, non-executing generation plan:
 

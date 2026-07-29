@@ -9,7 +9,13 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from pgextassure.grouping import grouped_report_document
-from pgextassure.review import render_review_pack, review_pack_document
+from pgextassure.review import (
+    ReviewError,
+    render_decision_template,
+    render_review_pack,
+    review_pack_document,
+    verify_decision_ledger,
+)
 from pgextassure.scanner import scan_path
 from pgextassure.source import canonical_json_bytes
 from tests.support import VULNERABLE_ROOT, run_cli
@@ -72,6 +78,114 @@ class AgentReviewPackTests(unittest.TestCase):
 
         self.assertNotIn("source_files", document)
         self.assertNotIn("CREATE FUNCTION", rendered)
+
+    def test_decision_template_round_trips_offline(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            pack = root / "review.json"
+            ledger = root / "decisions.json"
+            pack.write_text(
+                render_review_pack(scan_path(VULNERABLE_ROOT)),
+                encoding="utf-8",
+            )
+            first = render_decision_template(pack)
+            second = render_decision_template(pack)
+            ledger.write_text(first, encoding="utf-8")
+            summary = verify_decision_ledger(pack, ledger)
+
+        self.assertEqual(first, second)
+        self.assertTrue(summary["valid"])
+        self.assertFalse(summary["can_grant_admission"])
+        self.assertEqual(
+            summary["decisions"],
+            summary["by_disposition"]["unresolved"],
+        )
+
+    def test_cli_creates_and_verifies_decision_ledger(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            pack = root / "review.json"
+            ledger = root / "decisions.json"
+            pack.write_text(
+                render_review_pack(scan_path(VULNERABLE_ROOT)),
+                encoding="utf-8",
+            )
+            created = run_cli(
+                "review",
+                "template",
+                str(pack),
+                "--output",
+                str(ledger),
+            )
+            verified = run_cli(
+                "review",
+                "verify",
+                str(pack),
+                str(ledger),
+                "--format",
+                "json",
+            )
+            summary = json.loads(verified.stdout)
+
+        self.assertEqual(0, created.returncode, created.stderr)
+        self.assertEqual(0, verified.returncode, verified.stderr)
+        self.assertTrue(summary["valid"])
+        self.assertFalse(summary["can_grant_admission"])
+
+    def test_stale_pack_and_duplicate_task_decisions_are_rejected(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            pack = root / "review.json"
+            ledger = root / "decisions.json"
+            pack.write_text(
+                render_review_pack(scan_path(VULNERABLE_ROOT)),
+                encoding="utf-8",
+            )
+            document = json.loads(render_decision_template(pack))
+            document["review_pack_digest"] = "sha256:" + ("0" * 64)
+            ledger.write_text(json.dumps(document), encoding="utf-8")
+            with self.assertRaises(ReviewError):
+                verify_decision_ledger(pack, ledger)
+
+            document = json.loads(render_decision_template(pack))
+            if len(document["decisions"]) > 1:
+                document["decisions"][1]["task_id"] = document["decisions"][0][
+                    "task_id"
+                ]
+            ledger.write_text(json.dumps(document), encoding="utf-8")
+            with self.assertRaises(ReviewError):
+                verify_decision_ledger(pack, ledger)
+
+    def test_resolved_decision_requires_citations_and_reviewer(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            pack = root / "review.json"
+            ledger = root / "decisions.json"
+            pack.write_text(
+                render_review_pack(scan_path(VULNERABLE_ROOT)),
+                encoding="utf-8",
+            )
+            document = json.loads(render_decision_template(pack))
+            document["decisions"][0]["disposition"] = "accepted-capability"
+            ledger.write_text(json.dumps(document), encoding="utf-8")
+
+            with self.assertRaises(ReviewError):
+                verify_decision_ledger(pack, ledger)
+
+            document["decisions"][0].update(
+                {
+                    "rationale": "The cited control explicitly requires this capability.",
+                    "citations": ["task root-cause location 1"],
+                    "reviewer": "security-review-agent",
+                }
+            )
+            ledger.write_text(json.dumps(document), encoding="utf-8")
+            summary = verify_decision_ledger(pack, ledger)
+
+        self.assertEqual(
+            1,
+            summary["by_disposition"]["accepted-capability"],
+        )
 
 
 if __name__ == "__main__":
