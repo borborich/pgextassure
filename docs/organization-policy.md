@@ -5,6 +5,26 @@ organization's admission gate. This avoids duplicating severity flags across
 repositories and lets a platform team deny exact capabilities or rules even
 when their built-in severity is below the normal threshold.
 
+Start from a packaged, ruleset-pinned profile:
+
+```bash
+pgextassure policy-template adoption \
+  --output pgextassure-policy.json
+```
+
+`adoption` blocks critical findings plus network/process-execution
+capabilities, permits reviewed baselines and suppressions, and requires tickets
+for suppressions. `strict` additionally blocks high findings and broader
+privileged capabilities, forbids admission exceptions, and permits no skipped
+supported-source files.
+
+Templates are starting points, not universal security policy. Review every
+field, commit the result, require ownership approval, and regenerate or update
+the pinned `ruleset_version` when upgrading PgExtAssure. If a strict policy is
+stored inside the scanned root, the policy JSON itself is an unsupported file
+and violates `maximum_skipped_files: 0`; scan the extension subdirectory or
+keep the policy outside that root.
+
 ```json
 {
   "schema_version": "1.0",

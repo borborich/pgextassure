@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 import hashlib
+from importlib.resources import files
 import json
 import os
 from pathlib import Path
@@ -18,12 +19,30 @@ from .models import SEVERITY_RANK, ScanReport, Severity
 
 MAX_POLICY_FILE_BYTES = 1024 * 1024
 MAX_POLICY_LIST_ENTRIES = 256
+POLICY_TEMPLATE_PROFILES = ("adoption", "strict")
 _RULE_ID_PATTERN = re.compile(r"[a-z][a-z0-9.-]{0,127}\Z")
 _CAPABILITY_PATTERN = re.compile(r"[a-z][a-z0-9._-]{0,127}\Z")
 
 
 class PolicyError(ValueError):
     """An organization policy is malformed, stale, or cannot be enforced."""
+
+
+def render_policy_template(profile: str) -> str:
+    """Return one packaged, review-before-use organization policy template."""
+
+    if profile not in POLICY_TEMPLATE_PROFILES:
+        raise PolicyError(f"unknown policy template profile {profile!r}")
+    try:
+        return (
+            files("pgextassure")
+            .joinpath("policies", f"{profile}.json")
+            .read_text(encoding="utf-8")
+        )
+    except (FileNotFoundError, OSError) as error:
+        raise PolicyError(
+            f"cannot read packaged policy template {profile!r}: {error}"
+        ) from error
 
 
 @dataclass(frozen=True, slots=True)

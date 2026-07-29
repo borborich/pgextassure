@@ -100,6 +100,11 @@ def _base_wheel_files() -> dict[str, bytes]:
             continue
         relative = source.relative_to(SOURCE_ROOT).as_posix()
         files[relative] = source.read_bytes()
+    for source in sorted(PACKAGE_ROOT.rglob("*.json")):
+        if source.is_symlink() or not source.is_file():
+            continue
+        relative = source.relative_to(SOURCE_ROOT).as_posix()
+        files[relative] = source.read_bytes()
     schema_root = PROJECT_ROOT / "schemas"
     for source in sorted(schema_root.glob("*.json")):
         files[f"{NAME}/schemas/{source.name}"] = source.read_bytes()

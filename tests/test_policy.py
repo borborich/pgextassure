@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+from importlib.resources import files
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
+from pgextassure.policy import load_policy
 from pgextassure.scanner import RULESET_VERSION
 from tests.support import (
     FIXTURES_ROOT,
@@ -52,6 +54,41 @@ def _policy(
 
 
 class OrganizationPolicyTests(unittest.TestCase):
+    def test_packaged_policy_templates_are_strict_and_cli_deterministic(
+        self,
+    ) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            for profile in ("adoption", "strict"):
+                with self.subTest(profile=profile):
+                    first = run_cli("policy-template", profile)
+                    output = root / f"{profile}.json"
+                    second = run_cli(
+                        "policy-template",
+                        profile,
+                        "--output",
+                        str(output),
+                    )
+
+                    self.assertEqual(0, first.returncode, first.stderr)
+                    self.assertEqual(0, second.returncode, second.stderr)
+                    self.assertEqual(
+                        first.stdout,
+                        output.read_text(encoding="utf-8"),
+                    )
+                    self.assertEqual(
+                        first.stdout,
+                        files("pgextassure")
+                        .joinpath("policies", f"{profile}.json")
+                        .read_text(encoding="utf-8"),
+                    )
+                    loaded = json.loads(first.stdout)
+                    self.assertEqual(RULESET_VERSION, loaded["ruleset_version"])
+                    self.assertEqual(
+                        RULESET_VERSION,
+                        load_policy(output).ruleset_version,
+                    )
+
     def test_policy_owns_gate_and_is_embedded_with_digest(self) -> None:
         with TemporaryDirectory() as directory:
             policy = Path(directory) / "policy.json"
