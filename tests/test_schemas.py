@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 
+from pgextassure.evidence import verify_evidence_bundle
 from pgextassure.grouping import grouped_report_document
 from pgextassure.scanner import scan_path
-from tests.support import SAFE_ROOT
+from tests.support import SAFE_ROOT, run_cli
 
 
 SCHEMA_ROOT = Path(__file__).resolve().parents[1] / "schemas"
@@ -18,7 +20,7 @@ class PublishedSchemaTests(unittest.TestCase):
     def test_all_schema_files_are_unique_draft_2020_12_documents(self) -> None:
         identifiers: set[str] = set()
         schemas = sorted(SCHEMA_ROOT.glob("*.schema.json"))
-        self.assertEqual(6, len(schemas))
+        self.assertEqual(7, len(schemas))
         for path in schemas:
             with self.subTest(path=path.name):
                 document = json.loads(path.read_text(encoding="utf-8"))
@@ -60,6 +62,34 @@ class PublishedSchemaTests(unittest.TestCase):
         )
         self.assertTrue(
             set(grouped_schema["required"]).issubset(grouped)
+        )
+
+    def test_evidence_bundle_index_has_a_published_schema(self) -> None:
+        with TemporaryDirectory() as directory:
+            bundle = Path(directory) / "evidence.zip"
+            result = run_cli(
+                "evidence",
+                "create",
+                str(SAFE_ROOT),
+                "--created-on",
+                "2026-07-29",
+                "--output",
+                str(bundle),
+            )
+            verification = verify_evidence_bundle(bundle)
+            schema = json.loads(
+                (
+                    SCHEMA_ROOT / "evidence-bundle-1.0.schema.json"
+                ).read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(
+            verification.predicate["schema_version"],
+            schema["properties"]["schema_version"]["const"],
+        )
+        self.assertTrue(
+            set(schema["required"]).issubset(verification.predicate)
         )
 
 

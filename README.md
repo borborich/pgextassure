@@ -131,6 +131,24 @@ The policy owns the gate, can block exact capabilities or rules, and controls
 whether baseline/suppression mechanisms are allowed. See
 [Organization policy](docs/organization-policy.md).
 
+Create a deterministic, independently verifiable pilot artifact:
+
+```bash
+pgextassure evidence create /path/to/postgres-extension \
+  --policy pgextassure-policy.json \
+  --created-on 2026-07-29 \
+  --component-name example-extension \
+  --output pgextassure-evidence.zip
+
+pgextassure evidence verify pgextassure-evidence.zip
+```
+
+Evidence Bundle 1.0 binds the report, analyzed-source manifest, coverage,
+limited SPDX 2.3 inventory, and exact control-input bytes. It contains no
+source-file payloads and can be signed externally with GitHub/Sigstore
+attestations. See [Evidence bundles](docs/evidence-bundles.md) and the
+[enterprise pilot](docs/enterprise-pilot.md).
+
 Exit behavior is controlled by `--fail-on`:
 
 ```text
@@ -225,6 +243,12 @@ Action inputs:
 | `policy` | empty | Optional organization policy that owns the gate |
 | `annotations` | `none` | `active`, `all`, or `none` root-cause annotations |
 | `max-annotations` | `25` | Maximum annotation lines, from 2 through 50 |
+| `evidence-output` | empty | Enables evidence mode and writes Bundle 1.0 |
+| `evidence-predicate-output` | `pgextassure-evidence-predicate.json` | Verified custom-attestation predicate |
+| `evidence-sbom-output` | `pgextassure-sbom.spdx.json` | Verified SPDX inventory |
+| `evidence-created-on` | current UTC date | Optional explicit bundle date |
+| `component-name` | `postgresql-extension` | Non-secret SPDX component name |
+| `component-version` | empty | Optional SPDX component version |
 | `fail-on` | `none` | Minimum blocking severity, or `none` |
 | `python-version` | `3.11` | Python used to run PgExtAssure |
 
@@ -233,6 +257,12 @@ bounded by `max-annotations`. `active` includes active and expired decisions;
 `all` also emits accepted baseline and suppression decisions as notices. A
 report output is required because workflow commands use stdout. See
 [GitHub annotations](docs/github-annotations.md).
+
+When `evidence-output` is set, the Action creates and verifies a bundle instead
+of a standalone report. GitHub annotations are disabled in this mode. The
+Action exposes the bundle, predicate, and SPDX paths as `evidence-bundle`,
+`evidence-predicate`, and `evidence-sbom` outputs. Signing still requires an
+explicit caller-owned `actions/attest` step and OIDC permissions.
 
 Pin a released commit SHA in higher-assurance workflows. Uploading SARIF sends
 the generated report to GitHub; review your repository visibility, retention,
@@ -433,6 +463,8 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Baselines and suppressions](docs/admission-state.md)
 - [Organization policy](docs/organization-policy.md)
 - [GitHub annotations](docs/github-annotations.md)
+- [Evidence bundles](docs/evidence-bundles.md)
+- [Enterprise pilot](docs/enterprise-pilot.md)
 - [Roadmap](docs/roadmap.md)
 - [Public corpus pilot](benchmarks/public-corpus/README.md)
 

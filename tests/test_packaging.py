@@ -83,6 +83,18 @@ class PackagingContractTests(unittest.TestCase):
             "schemas/scan-report-1.3.schema.json",
             sdist_paths,
         )
+        self.assertIn(
+            "schemas/evidence-bundle-1.0.schema.json",
+            sdist_paths,
+        )
+        self.assertIn(
+            "examples/enterprise/policy.json",
+            sdist_paths,
+        )
+        self.assertIn(
+            "examples/enterprise/pgextassure.yml",
+            sdist_paths,
+        )
 
     @unittest.skipUnless(hasattr(os, "symlink"), "requires filesystem symlinks")
     def test_wheel_omits_symlinked_python_sources(self) -> None:

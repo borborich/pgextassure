@@ -1,0 +1,81 @@
+name: PostgreSQL extension admission evidence
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  attestations: write
+  contents: read
+  id-token: write
+
+jobs:
+  admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out extension repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Prepare evidence output directory
+        shell: bash
+        run: mkdir -p .pgextassure
+
+      - name: Create and verify evidence
+        id: assurance
+        continue-on-error: true
+        uses: borborich/pgextassure@REPLACE_WITH_RELEASE_COMMIT
+        with:
+          path: extension
+          policy: examples/enterprise/policy.json
+          evidence-output: .pgextassure/evidence.zip
+          evidence-predicate-output: .pgextassure/evidence-predicate.json
+          evidence-sbom-output: .pgextassure/sbom.spdx.json
+          component-name: example-postgresql-extension
+          component-version: ${{ github.sha }}
+
+      - name: Check whether verified evidence exists
+        id: evidence
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if [[ \
+            -f .pgextassure/evidence.zip \
+            && -f .pgextassure/evidence-predicate.json \
+            && -f .pgextassure/sbom.spdx.json \
+          ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Attest evidence decision
+        if: ${{ always() && steps.evidence.outputs.available == 'true' }}
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: .pgextassure/evidence.zip
+          predicate-type: https://github.com/borborich/pgextassure/attestation/evidence/v1
+          predicate-path: .pgextassure/evidence-predicate.json
+
+      - name: Attest SPDX inventory
+        if: ${{ always() && steps.evidence.outputs.available == 'true' }}
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: .pgextassure/evidence.zip
+          sbom-path: .pgextassure/sbom.spdx.json
+
+      - name: Retain evidence for review
+        if: ${{ always() && steps.evidence.outputs.available == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pgextassure-evidence
+          path: .pgextassure/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce admission result
+        if: ${{ always() }}
+        env:
+          ASSURANCE_OUTCOME: ${{ steps.assurance.outcome }}
+        shell: bash
+        run: test "$ASSURANCE_OUTCOME" = "success"

@@ -6,6 +6,17 @@ branding:
   icon: shield
   color: blue
 
+outputs:
+  evidence-bundle:
+    description: Evidence bundle path when evidence-output is set
+    value: ${{ inputs.evidence-output }}
+  evidence-predicate:
+    description: Verified custom-attestation predicate path
+    value: ${{ inputs.evidence-predicate-output }}
+  evidence-sbom:
+    description: Verified SPDX inventory path
+    value: ${{ inputs.evidence-sbom-output }}
+
 inputs:
   path:
     description: Extension source directory or supported input file
@@ -47,6 +58,30 @@ inputs:
     description: Maximum annotation lines, from 2 through 50
     required: false
     default: "25"
+  evidence-output:
+    description: Optional Evidence Bundle 1.0 ZIP path; enables evidence mode
+    required: false
+    default: ""
+  evidence-predicate-output:
+    description: Verified custom-attestation predicate path in evidence mode
+    required: false
+    default: pgextassure-evidence-predicate.json
+  evidence-sbom-output:
+    description: Verified SPDX inventory path in evidence mode
+    required: false
+    default: pgextassure-sbom.spdx.json
+  evidence-created-on:
+    description: Optional YYYY-MM-DD bundle date
+    required: false
+    default: ""
+  component-name:
+    description: Non-secret component name for the SPDX inventory
+    required: false
+    default: postgresql-extension
+  component-version:
+    description: Optional component version for the SPDX inventory
+    required: false
+    default: ""
   fail-on:
     description: Minimum blocking severity (critical, high, medium, low, or none)
     required: false
@@ -68,7 +103,7 @@ runs:
       shell: bash
       run: python -I -m pip install "$GITHUB_ACTION_PATH"
 
-    - name: Scan extension
+    - name: Assess extension
       shell: bash
       env:
         PGEXTASSURE_INPUT_PATH: ${{ inputs.path }}
@@ -82,16 +117,42 @@ runs:
         PGEXTASSURE_INPUT_POLICY: ${{ inputs.policy }}
         PGEXTASSURE_INPUT_ANNOTATIONS: ${{ inputs.annotations }}
         PGEXTASSURE_INPUT_MAX_ANNOTATIONS: ${{ inputs.max-annotations }}
+        PGEXTASSURE_INPUT_EVIDENCE_OUTPUT: ${{ inputs.evidence-output }}
+        PGEXTASSURE_INPUT_EVIDENCE_PREDICATE_OUTPUT: ${{ inputs.evidence-predicate-output }}
+        PGEXTASSURE_INPUT_EVIDENCE_SBOM_OUTPUT: ${{ inputs.evidence-sbom-output }}
+        PGEXTASSURE_INPUT_EVIDENCE_CREATED_ON: ${{ inputs.evidence-created-on }}
+        PGEXTASSURE_INPUT_COMPONENT_NAME: ${{ inputs.component-name }}
+        PGEXTASSURE_INPUT_COMPONENT_VERSION: ${{ inputs.component-version }}
       run: |
-        args=(
-          scan
-          "--format=$PGEXTASSURE_INPUT_FORMAT"
-          "--fail-on=$PGEXTASSURE_INPUT_FAIL_ON"
-          "--github-annotations=$PGEXTASSURE_INPUT_ANNOTATIONS"
-          "--max-annotations=$PGEXTASSURE_INPUT_MAX_ANNOTATIONS"
-        )
-        if [[ -n "$PGEXTASSURE_INPUT_OUTPUT" ]]; then
-          args+=("--output=$PGEXTASSURE_INPUT_OUTPUT")
+        if [[ -n "$PGEXTASSURE_INPUT_EVIDENCE_OUTPUT" ]]; then
+          if [[ "$PGEXTASSURE_INPUT_ANNOTATIONS" != "none" ]]; then
+            echo "PgExtAssure evidence mode cannot emit GitHub annotations" >&2
+            exit 2
+          fi
+          args=(
+            evidence
+            create
+            "--output=$PGEXTASSURE_INPUT_EVIDENCE_OUTPUT"
+            "--fail-on=$PGEXTASSURE_INPUT_FAIL_ON"
+            "--component-name=$PGEXTASSURE_INPUT_COMPONENT_NAME"
+          )
+          if [[ -n "$PGEXTASSURE_INPUT_EVIDENCE_CREATED_ON" ]]; then
+            args+=("--created-on=$PGEXTASSURE_INPUT_EVIDENCE_CREATED_ON")
+          fi
+          if [[ -n "$PGEXTASSURE_INPUT_COMPONENT_VERSION" ]]; then
+            args+=("--component-version=$PGEXTASSURE_INPUT_COMPONENT_VERSION")
+          fi
+        else
+          args=(
+            scan
+            "--format=$PGEXTASSURE_INPUT_FORMAT"
+            "--fail-on=$PGEXTASSURE_INPUT_FAIL_ON"
+            "--github-annotations=$PGEXTASSURE_INPUT_ANNOTATIONS"
+            "--max-annotations=$PGEXTASSURE_INPUT_MAX_ANNOTATIONS"
+          )
+          if [[ -n "$PGEXTASSURE_INPUT_OUTPUT" ]]; then
+            args+=("--output=$PGEXTASSURE_INPUT_OUTPUT")
+          fi
         fi
         if [[ -n "$PGEXTASSURE_INPUT_GENERATION_PLAN" ]]; then
           args+=("--generation-plan=$PGEXTASSURE_INPUT_GENERATION_PLAN")
@@ -109,4 +170,20 @@ runs:
           args+=("--policy=$PGEXTASSURE_INPUT_POLICY")
         fi
         args+=(-- "$PGEXTASSURE_INPUT_PATH")
+        if [[ -z "$PGEXTASSURE_INPUT_EVIDENCE_OUTPUT" ]]; then
+          python -I -m pgextassure "${args[@]}"
+          exit
+        fi
+
+        set +e
         python -I -m pgextassure "${args[@]}"
+        evidence_status="$?"
+        set -e
+        if [[ "$evidence_status" -gt 1 ]]; then
+          exit "$evidence_status"
+        fi
+        python -I -m pgextassure evidence verify \
+          "$PGEXTASSURE_INPUT_EVIDENCE_OUTPUT" \
+          "--predicate-output=$PGEXTASSURE_INPUT_EVIDENCE_PREDICATE_OUTPUT" \
+          "--sbom-output=$PGEXTASSURE_INPUT_EVIDENCE_SBOM_OUTPUT"
+        exit "$evidence_status"

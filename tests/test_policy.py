@@ -54,6 +54,20 @@ def _policy(
 
 
 class OrganizationPolicyTests(unittest.TestCase):
+    def test_enterprise_example_policy_is_current_and_strict(self) -> None:
+        policy = (
+            Path(__file__).resolve().parents[1]
+            / "examples"
+            / "enterprise"
+            / "policy.json"
+        )
+        loaded = load_policy(policy)
+
+        self.assertEqual(RULESET_VERSION, loaded.ruleset_version)
+        self.assertEqual(0, loaded.gate.maximum_skipped_files)
+        self.assertFalse(loaded.admission.allow_baseline)
+        self.assertFalse(loaded.admission.allow_suppressions)
+
     def test_packaged_policy_templates_are_strict_and_cli_deterministic(
         self,
     ) -> None:

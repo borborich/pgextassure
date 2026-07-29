@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import json
 import os
 from pathlib import Path
 import sys
@@ -18,6 +19,14 @@ from .admission import (
     load_suppressions,
     parse_admission_date,
     render_baseline,
+)
+from .evidence import (
+    BUNDLE_SCHEMA_VERSION,
+    EvidenceError,
+    create_evidence_bundle,
+    expected_material_digests,
+    read_evidence_material,
+    verify_evidence_bundle,
 )
 from .generation import GenerationPlanError, load_generation_plan
 from .models import SEVERITY_RANK, ScanReport, Severity
@@ -154,6 +163,67 @@ def _parser() -> argparse.ArgumentParser:
         choices=POLICY_TEMPLATE_PROFILES,
     )
     policy_template.add_argument("--output", metavar="FILE")
+    evidence = subcommands.add_parser(
+        "evidence",
+        help="create or independently verify a bounded evidence bundle",
+    )
+    evidence_commands = evidence.add_subparsers(
+        dest="evidence_command",
+        required=True,
+    )
+    evidence_create = evidence_commands.add_parser(
+        "create",
+        help="scan an extension and create a deterministic evidence bundle",
+    )
+    evidence_create.add_argument("path", metavar="PATH")
+    evidence_create.add_argument("--output", metavar="FILE", required=True)
+    evidence_create.add_argument(
+        "--created-on",
+        metavar="YYYY-MM-DD",
+        help="bundle date; defaults to the current UTC date",
+    )
+    evidence_create.add_argument(
+        "--component-name",
+        default="postgresql-extension",
+        help="non-secret component name for the SPDX inventory",
+    )
+    evidence_create.add_argument(
+        "--component-version",
+        help="optional component version for the SPDX inventory",
+    )
+    evidence_create.add_argument(
+        "--fail-on",
+        choices=("critical", "high", "medium", "low", "none"),
+        default="none",
+    )
+    evidence_create.add_argument("--generation-plan", metavar="FILE")
+    evidence_create.add_argument("--baseline", metavar="FILE")
+    evidence_create.add_argument("--suppressions", metavar="FILE")
+    evidence_create.add_argument("--evaluated-on", metavar="YYYY-MM-DD")
+    evidence_create.add_argument("--policy", metavar="FILE")
+    evidence_verify = evidence_commands.add_parser(
+        "verify",
+        help="verify a bundle offline without extracting it",
+    )
+    evidence_verify.add_argument("path", metavar="BUNDLE")
+    evidence_verify.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
+    )
+    evidence_verify.add_argument(
+        "--predicate-output",
+        metavar="FILE",
+        help=(
+            "write the verified custom-attestation predicate to a separate file"
+        ),
+    )
+    evidence_verify.add_argument(
+        "--sbom-output",
+        metavar="FILE",
+        help="write the verified SPDX inventory to a separate file",
+    )
     return parser
 
 
@@ -201,7 +271,7 @@ def _threshold_reached(report: ScanReport, threshold: str) -> bool:
     )
 
 
-def _write_output(path: str, rendered: str) -> None:
+def _write_binary_output(path: str, rendered: bytes) -> None:
     """Atomically replace an output file without following its final symlink."""
 
     target = Path(path)
@@ -238,7 +308,7 @@ def _write_output(path: str, rendered: str) -> None:
         dir=parent,
     )
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
+        with os.fdopen(descriptor, "wb") as handle:
             handle.write(rendered)
             handle.flush()
             os.fsync(handle.fileno())
@@ -249,6 +319,122 @@ def _write_output(path: str, rendered: str) -> None:
         except FileNotFoundError:
             pass
         raise
+
+
+def _write_output(path: str, rendered: str) -> None:
+    _write_binary_output(path, rendered.encode("utf-8"))
+
+
+def _controlled_scan(arguments: argparse.Namespace) -> ScanReport:
+    generation_plan = (
+        load_generation_plan(arguments.generation_plan)
+        if arguments.generation_plan
+        else None
+    )
+    report = scan_path(
+        arguments.path,
+        generation_plan=generation_plan,
+    )
+    policy = load_policy(arguments.policy) if arguments.policy else None
+    if policy is not None and arguments.fail_on != "none":
+        raise PolicyError(
+            "--policy cannot be combined with --fail-on; "
+            "the policy owns the gate"
+        )
+    baseline = (
+        load_baseline(arguments.baseline) if arguments.baseline else None
+    )
+    suppressions = (
+        load_suppressions(arguments.suppressions)
+        if arguments.suppressions
+        else None
+    )
+    if arguments.evaluated_on and suppressions is None:
+        raise AdmissionError("--evaluated-on requires --suppressions")
+    evaluated_on = (
+        parse_admission_date(
+            arguments.evaluated_on,
+            label="suppression evaluation date",
+        )
+        if arguments.evaluated_on
+        else (
+            datetime.now(timezone.utc).date()
+            if suppressions is not None
+            else None
+        )
+    )
+    report = apply_admission(
+        report,
+        baseline=baseline,
+        suppressions=suppressions,
+        evaluated_on=evaluated_on,
+    )
+    if policy is not None:
+        report = apply_policy(
+            report,
+            policy,
+            baseline=baseline,
+            suppressions=suppressions,
+        )
+    return report
+
+
+def _report_is_blocked(
+    report: ScanReport,
+    *,
+    fail_on: str,
+) -> bool:
+    return (
+        report.policy is not None
+        and report.policy["result"]["blocked"]
+    ) or _threshold_reached(report, fail_on)
+
+
+def _evidence_materials(
+    report: ScanReport,
+    arguments: argparse.Namespace,
+) -> dict[str, bytes]:
+    paths = {
+        "baseline": arguments.baseline,
+        "generation_plan": arguments.generation_plan,
+        "policy": arguments.policy,
+        "suppressions": arguments.suppressions,
+    }
+    materials: dict[str, bytes] = {}
+    for name, digest in expected_material_digests(report).items():
+        path = paths[name]
+        if not path:
+            raise EvidenceError(
+                f"report retained {name} without a corresponding input path"
+            )
+        materials[name] = read_evidence_material(
+            path,
+            expected_digest=digest,
+        )
+    return materials
+
+
+def _render_verification_summary(summary: dict[str, object]) -> str:
+    component = summary["component"]
+    assert isinstance(component, dict)
+    return "\n".join(
+        (
+            f"PgExtAssure evidence {summary['schema_version']}: valid",
+            (
+                f"Component: {component['name']}"
+                + (
+                    f" {component['version']}"
+                    if component["version"] is not None
+                    else ""
+                )
+            ),
+            f"Gate: {summary['gate']}",
+            f"Manifest: {summary['manifest_digest']}",
+            f"Coverage: {summary['coverage_digest']}",
+            "Source files included: no",
+            "Dependency resolution: not performed",
+        )
+    ) + "\n"
 
 
 def _silence_broken_stdout() -> None:
@@ -297,7 +483,106 @@ def main(argv: Sequence[str] | None = None) -> int:
             return EXIT_USAGE
         return EXIT_OK
 
+    if (
+        arguments.command == "evidence"
+        and arguments.evidence_command == "verify"
+    ):
+        try:
+            verification = verify_evidence_bundle(arguments.path)
+            if arguments.predicate_output:
+                _write_output(
+                    arguments.predicate_output,
+                    json.dumps(
+                        verification.predicate,
+                        ensure_ascii=False,
+                        allow_nan=False,
+                        sort_keys=True,
+                        indent=2,
+                    )
+                    + "\n",
+                )
+            if arguments.sbom_output:
+                _write_output(
+                    arguments.sbom_output,
+                    json.dumps(
+                        verification.sbom,
+                        ensure_ascii=False,
+                        allow_nan=False,
+                        sort_keys=True,
+                        indent=2,
+                    )
+                    + "\n",
+                )
+            rendered = (
+                json.dumps(
+                    verification.summary,
+                    ensure_ascii=False,
+                    allow_nan=False,
+                    sort_keys=True,
+                    indent=2,
+                )
+                + "\n"
+                if arguments.output_format == "json"
+                else _render_verification_summary(verification.summary)
+            )
+            sys.stdout.write(rendered)
+            sys.stdout.flush()
+        except EvidenceError as error:
+            print(
+                "pgextassure: evidence verification failed: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_SCAN_ERROR
+        except BrokenPipeError:
+            _silence_broken_stdout()
+        except OSError as error:
+            print(
+                "pgextassure: cannot write output: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        return EXIT_OK
+
     try:
+        if (
+            arguments.command == "evidence"
+            and arguments.evidence_command == "create"
+        ):
+            report = _controlled_scan(arguments)
+            created_on = (
+                parse_admission_date(
+                    arguments.created_on,
+                    label="evidence created_on",
+                )
+                if arguments.created_on
+                else datetime.now(timezone.utc).date()
+            )
+            blocked = _report_is_blocked(
+                report,
+                fail_on=arguments.fail_on,
+            )
+            bundle = create_evidence_bundle(
+                report,
+                created_on=created_on,
+                component_name=arguments.component_name,
+                component_version=arguments.component_version,
+                blocked=blocked,
+                fail_on=(
+                    "none"
+                    if arguments.policy is not None
+                    else arguments.fail_on
+                ),
+                materials=_evidence_materials(report, arguments),
+            )
+            _write_binary_output(arguments.output, bundle)
+            verification = verify_evidence_bundle(arguments.output)
+            sys.stdout.write(
+                _render_verification_summary(verification.summary)
+            )
+            sys.stdout.flush()
+            return EXIT_FINDINGS if blocked else EXIT_OK
         if (
             arguments.command == "scan"
             and arguments.github_annotations != "none"
@@ -307,16 +592,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "--github-annotations requires --output so report stdout "
                 "remains machine-readable"
             )
-        generation_plan = (
-            load_generation_plan(arguments.generation_plan)
-            if arguments.generation_plan
-            else None
-        )
-        report = scan_path(
-            arguments.path,
-            generation_plan=generation_plan,
-        )
         if arguments.command == "baseline":
+            generation_plan = (
+                load_generation_plan(arguments.generation_plan)
+                if arguments.generation_plan
+                else None
+            )
+            report = scan_path(
+                arguments.path,
+                generation_plan=generation_plan,
+            )
             created_on = (
                 parse_admission_date(
                     arguments.created_on,
@@ -328,53 +613,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             rendered = render_baseline(report, created_on=created_on)
             result = EXIT_OK
         else:
-            policy = (
-                load_policy(arguments.policy) if arguments.policy else None
-            )
-            if policy is not None and arguments.fail_on != "none":
-                raise PolicyError(
-                    "--policy cannot be combined with --fail-on; "
-                    "the policy owns the gate"
-                )
-            baseline = (
-                load_baseline(arguments.baseline)
-                if arguments.baseline
-                else None
-            )
-            suppressions = (
-                load_suppressions(arguments.suppressions)
-                if arguments.suppressions
-                else None
-            )
-            if arguments.evaluated_on and suppressions is None:
-                raise AdmissionError(
-                    "--evaluated-on requires --suppressions"
-                )
-            evaluated_on = (
-                parse_admission_date(
-                    arguments.evaluated_on,
-                    label="suppression evaluation date",
-                )
-                if arguments.evaluated_on
-                else (
-                    datetime.now(timezone.utc).date()
-                    if suppressions is not None
-                    else None
-                )
-            )
-            report = apply_admission(
-                report,
-                baseline=baseline,
-                suppressions=suppressions,
-                evaluated_on=evaluated_on,
-            )
-            if policy is not None:
-                report = apply_policy(
-                    report,
-                    policy,
-                    baseline=baseline,
-                    suppressions=suppressions,
-                )
+            report = _controlled_scan(arguments)
             sarif_path_prefix = (
                 _sarif_path_prefix(arguments.path)
                 if arguments.output_format == "sarif"
@@ -397,11 +636,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             result = (
                 EXIT_FINDINGS
-                if (
-                    report.policy is not None
-                    and report.policy["result"]["blocked"]
+                if _report_is_blocked(
+                    report,
+                    fail_on=arguments.fail_on,
                 )
-                or _threshold_reached(report, arguments.fail_on)
                 else EXIT_OK
             )
     except GenerationPlanError as error:
@@ -419,6 +657,30 @@ def main(argv: Sequence[str] | None = None) -> int:
     except PolicyError as error:
         print(
             f"pgextassure: policy: {sanitize_terminal_text(error)}",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    except EvidenceError as error:
+        print(
+            f"pgextassure: evidence: {sanitize_terminal_text(error)}",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    except BrokenPipeError:
+        _silence_broken_stdout()
+        return (
+            EXIT_FINDINGS
+            if (
+                arguments.command == "evidence"
+                and arguments.evidence_command == "create"
+                and blocked
+            )
+            else EXIT_OK
+        )
+    except OSError as error:
+        print(
+            "pgextassure: cannot write output: "
+            f"{sanitize_terminal_text(error)}",
             file=sys.stderr,
         )
         return EXIT_USAGE

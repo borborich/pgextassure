@@ -11,9 +11,17 @@ Current contracts:
 - generation plan `1.0`;
 - baseline `1.0`;
 - suppressions `1.0`;
-- organization policy `1.0`.
+- organization policy `1.0`;
+- Evidence Bundle index `1.0`.
 
 SARIF remains SARIF `2.1.0` and links the standard SchemaStore schema.
+
+Evidence Bundle 1.0 is a bounded ZIP container whose canonical `bundle.json`
+index is described by
+[`evidence-bundle-1.0.schema.json`](../schemas/evidence-bundle-1.0.schema.json).
+The offline verifier additionally checks archive safety, payload hashes,
+manifest/coverage recomputation, exact control-input digests, and SPDX/report
+consistency.
 
 ## Coverage inventory
 
