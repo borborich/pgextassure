@@ -19,7 +19,7 @@ class CliContractTests(unittest.TestCase):
         result = run_cli("--version")
 
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual("pgextassure 0.1.0-alpha.1\n", result.stdout)
+        self.assertEqual("pgextassure 0.1.0-alpha.2\n", result.stdout)
 
     def test_output_symlink_is_rejected_without_overwriting_target(self) -> None:
         with TemporaryDirectory() as directory:
@@ -128,7 +128,7 @@ class CliContractTests(unittest.TestCase):
         self.assertIsInstance(document["runs"][0].get("results"), list)
         driver = document["runs"][0].get("tool", {}).get("driver", {})
         self.assertEqual("pgextassure", driver.get("name"))
-        self.assertEqual("0.1.0-alpha.1", driver.get("semanticVersion"))
+        self.assertEqual("0.1.0-alpha.2", driver.get("semanticVersion"))
         self.assertEqual(
             "https://github.com/borborich/pgextassure",
             driver.get("informationUri"),
@@ -171,7 +171,7 @@ class CliContractTests(unittest.TestCase):
         result = run_cli("scan", str(SAFE_ROOT), "--format", "text")
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertTrue(
-            result.stdout.startswith("PgExtAssure 0.1.0-alpha.1\n"),
+            result.stdout.startswith("PgExtAssure 0.1.0-alpha.2\n"),
             result.stdout,
         )
 
