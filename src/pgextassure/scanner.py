@@ -37,7 +37,7 @@ from ._version import RELEASE_VERSION
 
 
 TOOL_VERSION = RELEASE_VERSION
-RULESET_VERSION = "2026-07-28.4"
+RULESET_VERSION = "2026-07-29.5"
 SUPPORTED_SUFFIXES = frozenset({".control", ".sql", ".c", ".h", ".rs"})
 SUPPORTED_FILENAMES = frozenset({"Cargo.toml"})
 MAX_FILES = 25_000
