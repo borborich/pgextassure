@@ -209,6 +209,26 @@ See [Evidence bundles](docs/evidence-bundles.md),
 [Corporate Evidence Signature Profile 1.0](docs/corporate-signatures.md), and
 the [enterprise pilot](docs/enterprise-pilot.md).
 
+Evaluate signed evidence against an organization-owned trust policy and create
+a deterministic Admission Receipt:
+
+```bash
+pgextassure trust evaluate pgextassure-evidence.zip \
+  --statement pgextassure-signature.json \
+  --signature pgextassure-signature.bin \
+  --public-key pgextassure-public-key.pem \
+  --trust-policy enterprise-trust-policy.json \
+  --evaluated-on 2026-07-29 \
+  --request-id CHG-2026-0042 \
+  --target postgresql-prod-eu/extension-slot-01 \
+  --output pgextassure-admission-receipt.json
+```
+
+Enterprise Trust Policy 1.0 owns accepted signers, key validity/revocation,
+tool/ruleset/policy constraints, age limits, and receipt lifetime. A deny
+receipt remains independently verifiable. See
+[Enterprise trust and Admission Receipts](docs/enterprise-trust.md).
+
 Exit behavior is controlled by `--fail-on`:
 
 ```text

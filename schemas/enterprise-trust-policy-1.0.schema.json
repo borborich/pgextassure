@@ -1,0 +1,140 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/enterprise-trust-policy-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "date": {
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "type": "string"
+    },
+    "digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "nullableDate": {
+      "anyOf": [
+        {"$ref": "#/$defs/date"},
+        {"type": "null"}
+      ]
+    },
+    "version": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "effective_from": {"$ref": "#/$defs/date"},
+    "expires_on": {"$ref": "#/$defs/nullableDate"},
+    "policy_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$",
+      "type": "string"
+    },
+    "policy_type": {"const": "pgextassure.enterprise-trust-policy"},
+    "requirements": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_evidence_schema_versions": {
+          "items": {"$ref": "#/$defs/version"},
+          "maxItems": 256,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "allowed_gates": {
+          "items": {"enum": ["pass", "blocked"]},
+          "maxItems": 2,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "allowed_policy_digests": {
+          "items": {"$ref": "#/$defs/digest"},
+          "maxItems": 256,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "allowed_ruleset_versions": {
+          "items": {"$ref": "#/$defs/version"},
+          "maxItems": 256,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "allowed_tool_versions": {
+          "items": {"$ref": "#/$defs/version"},
+          "maxItems": 256,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "maximum_evidence_age_days": {
+          "maximum": 3650,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maximum_signature_age_days": {
+          "maximum": 3650,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "receipt_valid_days": {
+          "maximum": 365,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "allowed_gates",
+        "allowed_tool_versions",
+        "allowed_ruleset_versions",
+        "allowed_evidence_schema_versions",
+        "allowed_policy_digests",
+        "maximum_evidence_age_days",
+        "maximum_signature_age_days",
+        "receipt_valid_days"
+      ],
+      "type": "object"
+    },
+    "schema_version": {"const": "1.0"},
+    "signers": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {"maxLength": 512, "minLength": 1, "type": "string"},
+          "public_key_sha256": {"$ref": "#/$defs/digest"},
+          "revoked_on": {"$ref": "#/$defs/nullableDate"},
+          "valid_from": {"$ref": "#/$defs/date"},
+          "valid_until": {"$ref": "#/$defs/nullableDate"}
+        },
+        "required": [
+          "id",
+          "public_key_sha256",
+          "valid_from",
+          "valid_until",
+          "revoked_on"
+        ],
+        "type": "object"
+      },
+      "maxItems": 256,
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "policy_type",
+    "policy_id",
+    "effective_from",
+    "expires_on",
+    "requirements",
+    "signers"
+  ],
+  "title": "PgExtAssure Enterprise Trust Policy 1.0",
+  "type": "object"
+}

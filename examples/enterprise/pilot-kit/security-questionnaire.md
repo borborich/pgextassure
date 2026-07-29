@@ -59,6 +59,34 @@ signature over `"gate": "blocked"` proves integrity of a blocked decision.
 No. PgExtAssure produces review evidence, not certification, formal
 verification, legal advice, or automatic installation authority.
 
+## How does a valid signature become an admission decision?
+
+Enterprise Trust Policy 1.0 applies exact organization-owned constraints for
+signer fingerprints, key validity and revocation, accepted gate, tool/ruleset,
+evidence policy, and artifact ages. It emits a canonical Admission Receipt with
+an `admit` or `deny` result and closed reason codes.
+
+## Can an Admission Receipt be independently verified?
+
+Yes. The verifier recomputes the complete receipt from the signed bundle,
+statement, public key, and exact trust-policy bytes. The caller must separately
+supply the expected trust-policy digest, request ID, target, and evaluation
+date so a modified receipt cannot redefine its own authorization context.
+
+## Does PgExtAssure prevent receipt replay?
+
+It rejects stale evidence and binds every receipt to a request ID, target, and
+lifetime. It does not maintain a shared transaction database. The ticket or
+deployment system must enforce request-ID uniqueness and one-time consumption
+when required.
+
+## Is the receipt itself signed?
+
+Not in Receipt Profile 1.0. It is a deterministic recomputable record whose
+integrity depends on the signed Evidence Bundle and external trust context. A
+deployment authority may separately sign or attest it if a portable bearer
+token is required.
+
 ## What remains outside the static pilot?
 
 Runtime behavior, compiled-artifact/source correspondence, transitive

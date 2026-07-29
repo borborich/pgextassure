@@ -21,6 +21,8 @@ The supplier sends exactly these artifacts:
 | `pgextassure-signature.bin` | Detached RSA-PSS-SHA256 signature |
 | `pgextassure-public-key.pem` | Public verification key |
 | trusted key fingerprint | Delivered through an independent trust channel |
+| `enterprise-trust-policy.json` | Organization-owned signer and evidence trust anchor |
+| `pgextassure-admission-receipt.json` | Recomputable admit or deny decision |
 
 Source files are not embedded in the evidence ZIP. Reports can contain short
 matched excerpts and must still be handled as security-sensitive artifacts.
@@ -35,7 +37,11 @@ matched excerpts and must still be handled as security-sensitive artifacts.
 6. Confirm the output says `valid` and inspect whether `Gate` is `pass` or
    `blocked`.
 7. Change one byte in a copied artifact and confirm verification exits `3`.
-8. Record the result against
+8. Evaluate the signature against the reviewed enterprise trust policy and
+   bind the receipt to the pilot request ID and target.
+9. Recompute the receipt using independently expected request context and
+   trust-policy digest.
+10. Record the result against
    [`acceptance-criteria.md`](acceptance-criteria.md).
 
 The pilot demonstrates a tamper-evident, independently verifiable admission

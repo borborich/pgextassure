@@ -42,6 +42,12 @@ verified Evidence Bundle, its policy outcome, source-manifest and coverage
 digests, signer ID, and public-key fingerprint. The accompanying pilot kit is
 designed for transfer to a receiving security team without a vendor service.
 
+The current development line adds Enterprise Trust Policy 1.0 and Admission
+Receipt 1.0. Exact signer fingerprints, validity/revocation, tool/ruleset and
+evidence-policy allowlists, age limits, request context, and receipt lifetime
+turn cryptographic validity into an explicit, independently recomputable
+organization decision without hiding denied evidence.
+
 ## Isolated dynamic assurance
 
 Dynamic analysis must be a separate opt-in command and execution service. A

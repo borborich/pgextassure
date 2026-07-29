@@ -44,3 +44,9 @@ RSA-PSS-SHA256 signing and verification. The transferable evaluation package
 is under [`examples/enterprise/pilot-kit/`](../examples/enterprise/pilot-kit/).
 It includes a thirty-minute acceptance path, explicit criteria, independent
 verification steps, and concise security-questionnaire answers.
+
+The kit also includes an Enterprise Trust Policy template and Admission
+Receipt workflow. This layer demonstrates key rotation/revocation, exact
+tool/ruleset/policy constraints, evidence freshness, request-context binding,
+and the difference between a cryptographically valid artifact and an active
+organization admission decision.

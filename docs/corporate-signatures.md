@@ -98,3 +98,7 @@ changed and that the holder of the corresponding private key produced the
 signature. It does not certify the extension as safe, establish the legal
 identity behind an untrusted key, or replace the organization's admission
 authority.
+
+To apply signer validity, revocation, evidence freshness, exact
+tool/ruleset/policy constraints, and request-bound authorization, continue with
+[Enterprise Trust Policy and Admission Receipt 1.0](enterprise-trust.md).
