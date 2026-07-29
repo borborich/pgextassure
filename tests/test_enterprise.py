@@ -195,8 +195,8 @@ class EnterpriseAdmissionIntegrationTests(unittest.TestCase):
         }
         for source, name in copies.items():
             shutil.copyfile(source, staging / name)
-        wheel_name = "pgextassure-0.1.0a11-py3-none-any.whl"
-        sdist_name = "pgextassure-0.1.0a11.tar.gz"
+        wheel_name = "pgextassure-0.1.0a12-py3-none-any.whl"
+        sdist_name = "pgextassure-0.1.0a12.tar.gz"
         wheel = b"wheel-integration-placeholder"
         sdist = b"sdist-integration-placeholder"
         (staging / wheel_name).write_bytes(wheel)
