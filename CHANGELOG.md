@@ -6,6 +6,13 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- One-shot Enterprise Pilot Package enforcement against out-of-band package,
+  public-key, Trust Policy, and request-context anchors.
+- Closed Admission Event `1.0` for CI, Jira, ServiceNow, and SIEM ingestion,
+  plus a dedicated GitHub admission sub-action.
+
 ## [0.1.0-alpha.10] - 2026-07-29
 
 ### Added

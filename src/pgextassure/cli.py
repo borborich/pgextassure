@@ -28,6 +28,7 @@ from .evidence import (
     read_evidence_material,
     verify_evidence_bundle,
 )
+from .enterprise import AdmissionEnforcementError, enforce_pilot_package
 from .generation import GenerationPlanError, load_generation_plan
 from .models import SEVERITY_RANK, ScanReport, Severity
 from .pilot import (
@@ -452,6 +453,50 @@ def _parser() -> argparse.ArgumentParser:
         default="text",
         dest="output_format",
     )
+    pilot_enforce = pilot_commands.add_parser(
+        "enforce",
+        help="enforce an embedded admission receipt against external trust anchors",
+    )
+    pilot_enforce.add_argument("path", metavar="PACKAGE")
+    pilot_enforce.add_argument(
+        "--expected-package-sha256",
+        metavar="sha256:DIGEST",
+        required=True,
+    )
+    pilot_enforce.add_argument(
+        "--expected-key-sha256",
+        metavar="sha256:DIGEST",
+        required=True,
+    )
+    pilot_enforce.add_argument(
+        "--expected-trust-policy-sha256",
+        metavar="sha256:DIGEST",
+        required=True,
+    )
+    pilot_enforce.add_argument("--expected-request-id", required=True)
+    pilot_enforce.add_argument("--expected-target", required=True)
+    pilot_enforce.add_argument(
+        "--expected-evaluated-on",
+        metavar="YYYY-MM-DD",
+        required=True,
+    )
+    pilot_enforce.add_argument(
+        "--verified-on",
+        metavar="YYYY-MM-DD",
+        help="receipt-use date; defaults to the current UTC date",
+    )
+    pilot_enforce.add_argument("--openssl", metavar="FILE")
+    pilot_enforce.add_argument(
+        "--event-output",
+        metavar="FILE",
+        help="write the canonical Admission Event 1.0 JSON",
+    )
+    pilot_enforce.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
+    )
     return parser
 
 
@@ -834,6 +879,88 @@ def main(argv: Sequence[str] | None = None) -> int:
         except BrokenPipeError:
             _silence_broken_stdout()
             return EXIT_OK
+
+    if arguments.command == "pilot" and arguments.pilot_command == "enforce":
+        try:
+            expected_evaluated_on = parse_admission_date(
+                arguments.expected_evaluated_on,
+                label="pilot expected_evaluated_on",
+            )
+            verified_on = (
+                parse_admission_date(
+                    arguments.verified_on,
+                    label="pilot verified_on",
+                )
+                if arguments.verified_on
+                else datetime.now(timezone.utc).date()
+            )
+            if arguments.event_output:
+                protected_paths = {os.path.abspath(arguments.path)}
+                if arguments.openssl:
+                    protected_paths.add(os.path.abspath(arguments.openssl))
+                if os.path.abspath(arguments.event_output) in protected_paths:
+                    raise AdmissionEnforcementError(
+                        "Admission Event output must not overwrite an input"
+                    )
+            enforcement = enforce_pilot_package(
+                arguments.path,
+                expected_package_sha256=arguments.expected_package_sha256,
+                expected_public_key_sha256=arguments.expected_key_sha256,
+                expected_trust_policy_sha256=(
+                    arguments.expected_trust_policy_sha256
+                ),
+                expected_request_id=arguments.expected_request_id,
+                expected_target=arguments.expected_target,
+                expected_evaluated_on=expected_evaluated_on,
+                verified_on=verified_on,
+                openssl_path=arguments.openssl,
+            )
+            if arguments.event_output:
+                _write_binary_output(arguments.event_output, enforcement.event)
+            rendered = (
+                enforcement.event.decode("utf-8")
+                if arguments.output_format == "json"
+                else (
+                    "PgExtAssure Admission Event 1.0: "
+                    f"{enforcement.document['outcome']}\n"
+                    f"Event ID: {enforcement.document['id']}\n"
+                    "Package: "
+                    f"{enforcement.document['package']['digest']}\n"
+                    "Request: "
+                    f"{enforcement.document['request']['id']}\n"
+                    "Target: "
+                    f"{enforcement.document['request']['target']}\n"
+                    "Valid until: "
+                    f"{enforcement.document['decision']['valid_until']}\n"
+                )
+            )
+            sys.stdout.write(rendered)
+            sys.stdout.flush()
+            return EXIT_OK if enforcement.active else EXIT_FINDINGS
+        except AdmissionError as error:
+            print(
+                f"pgextassure: pilot enforcement: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        except AdmissionEnforcementError as error:
+            print(
+                f"pgextassure: pilot enforcement failed: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_SCAN_ERROR
+        except BrokenPipeError:
+            _silence_broken_stdout()
+            return EXIT_OK if enforcement.active else EXIT_FINDINGS
+        except OSError as error:
+            print(
+                "pgextassure: cannot write output: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
 
     if arguments.command == "review":
         try:

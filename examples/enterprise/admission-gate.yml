@@ -1,0 +1,54 @@
+name: Enforce PgExtAssure enterprise admission
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_artifact:
+        description: Workflow artifact containing pgextassure-enterprise-pilot.zip
+        required: true
+      request_id:
+        description: Trusted change or deployment request ID
+        required: true
+      target:
+        description: Trusted deployment target
+        required: true
+      evaluated_on:
+        description: Trusted receipt evaluation date (YYYY-MM-DD)
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  admission:
+    runs-on: ubuntu-latest
+    environment: postgresql-production
+    steps:
+      - name: Download Pilot Package
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ inputs.package_artifact }}
+          path: incoming
+
+      - name: Enforce external trust anchors
+        id: admission
+        uses: borborich/pgextassure/admission@REPLACE_WITH_RELEASE_COMMIT
+        with:
+          package: incoming/pgextassure-enterprise-pilot.zip
+          expected-package-sha256: ${{ vars.PGEXTASSURE_PACKAGE_SHA256 }}
+          expected-key-sha256: ${{ vars.PGEXTASSURE_KEY_SHA256 }}
+          expected-trust-policy-sha256: ${{ vars.PGEXTASSURE_TRUST_POLICY_SHA256 }}
+          expected-request-id: ${{ inputs.request_id }}
+          expected-target: ${{ inputs.target }}
+          expected-evaluated-on: ${{ inputs.evaluated_on }}
+          event-output: pgextassure-admission-event.json
+
+      - name: Retain Admission Event
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pgextassure-admission-event
+          path: pgextassure-admission-event.json
+          if-no-files-found: error
+          retention-days: 30

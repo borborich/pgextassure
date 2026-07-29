@@ -69,6 +69,7 @@ class PilotPackage:
 class PilotPackageVerification:
     manifest: dict[str, Any]
     summary: dict[str, Any]
+    payloads: dict[str, bytes]
 
 
 def _json_bytes(value: Any) -> bytes:
@@ -417,4 +418,5 @@ def verify_pilot_package(
             "files": len(files),
             "archive_sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
         },
+        payloads=files,
     )

@@ -1,0 +1,137 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/admission-event-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "date": {
+      "format": "date",
+      "type": "string"
+    },
+    "digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "text": {
+      "maxLength": 512,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "active": {"type": "boolean"},
+    "decision": {
+      "additionalProperties": false,
+      "properties": {
+        "reasons": {
+          "items": {"$ref": "#/$defs/text"},
+          "maxItems": 256,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "result": {"enum": ["admit", "deny"]},
+        "valid_until": {"$ref": "#/$defs/date"}
+      },
+      "required": ["result", "reasons", "valid_until"],
+      "type": "object"
+    },
+    "event_type": {
+      "const": "pgextassure.enterprise-admission-event"
+    },
+    "id": {"$ref": "#/$defs/digest"},
+    "observed_on": {"$ref": "#/$defs/date"},
+    "outcome": {"enum": ["allow", "deny"]},
+    "package": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {"$ref": "#/$defs/digest"},
+        "files": {
+          "maximum": 64,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "manifest_digest": {"$ref": "#/$defs/digest"}
+      },
+      "required": ["digest", "manifest_digest", "files"],
+      "type": "object"
+    },
+    "request": {
+      "additionalProperties": false,
+      "properties": {
+        "evaluated_on": {"$ref": "#/$defs/date"},
+        "id": {"$ref": "#/$defs/text"},
+        "target": {"$ref": "#/$defs/text"}
+      },
+      "required": ["id", "target", "evaluated_on"],
+      "type": "object"
+    },
+    "schema_version": {"const": "1.0"},
+    "signature": {
+      "additionalProperties": false,
+      "properties": {
+        "created_on": {"$ref": "#/$defs/date"},
+        "public_key_sha256": {"$ref": "#/$defs/digest"},
+        "signer_id": {"$ref": "#/$defs/text"}
+      },
+      "required": ["signer_id", "public_key_sha256", "created_on"],
+      "type": "object"
+    },
+    "subject": {
+      "additionalProperties": false,
+      "properties": {
+        "component": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {"$ref": "#/$defs/text"},
+            "version": {
+              "oneOf": [
+                {"$ref": "#/$defs/text"},
+                {"type": "null"}
+              ]
+            }
+          },
+          "required": ["name", "version"],
+          "type": "object"
+        },
+        "digest": {"$ref": "#/$defs/digest"},
+        "gate": {"enum": ["pass", "blocked"]},
+        "tool": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {"const": "pgextassure"},
+            "ruleset_version": {"$ref": "#/$defs/text"},
+            "version": {"$ref": "#/$defs/text"}
+          },
+          "required": ["name", "version", "ruleset_version"],
+          "type": "object"
+        }
+      },
+      "required": ["digest", "gate", "component", "tool"],
+      "type": "object"
+    },
+    "trust": {
+      "additionalProperties": false,
+      "properties": {
+        "policy_digest": {"$ref": "#/$defs/digest"},
+        "policy_id": {"$ref": "#/$defs/text"}
+      },
+      "required": ["policy_id", "policy_digest"],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "event_type",
+    "id",
+    "observed_on",
+    "outcome",
+    "active",
+    "request",
+    "package",
+    "decision",
+    "trust",
+    "subject",
+    "signature"
+  ],
+  "title": "PgExtAssure Enterprise Admission Event 1.0",
+  "type": "object"
+}

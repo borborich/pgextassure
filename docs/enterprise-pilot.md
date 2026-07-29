@@ -56,3 +56,9 @@ It creates a deterministic, manifest-bound, non-extracting-verifiable ZIP with
 the exact release distributions and retained verification results while
 rejecting unrecognized payloads and common private-key formats. See
 [Enterprise Pilot Package 1.0](pilot-packages.md).
+
+The next integration boundary is the one-shot
+[`pilot enforce`](enterprise-integrations.md) command and dedicated GitHub
+sub-action. They bind the complete package to out-of-band trust anchors,
+recompute its signature and receipt, and emit Admission Event 1.0 for CI,
+Jira, ServiceNow, or SIEM ingestion.

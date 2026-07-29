@@ -88,6 +88,10 @@ class PackagingContractTests(unittest.TestCase):
             wheel_files,
         )
         self.assertIn(
+            "pgextassure/schemas/admission-event-1.0.schema.json",
+            wheel_files,
+        )
+        self.assertIn(
             "pgextassure/policies/adoption.json",
             wheel_files,
         )
@@ -113,6 +117,11 @@ class PackagingContractTests(unittest.TestCase):
         )
         self.assertIn(
             "examples/enterprise/trust-policy.json",
+            sdist_paths,
+        )
+        self.assertIn("admission/action.yml", sdist_paths)
+        self.assertIn(
+            "examples/enterprise/admission-gate.yml",
             sdist_paths,
         )
 
