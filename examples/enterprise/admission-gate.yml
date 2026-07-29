@@ -44,11 +44,23 @@ jobs:
           expected-evaluated-on: ${{ inputs.evaluated_on }}
           event-output: pgextassure-admission-event.json
 
-      - name: Retain Admission Event
+      - name: Export Splunk HEC payload
+        uses: borborich/pgextassure/integration@REPLACE_WITH_RELEASE_COMMIT
+        with:
+          event: pgextassure-admission-event.json
+          profile: splunk-hec
+          index: security_events
+          output: pgextassure-splunk-hec.json
+          manifest-output: pgextassure-integration-export.json
+
+      - name: Retain admission and integration records
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: pgextassure-admission-event
-          path: pgextassure-admission-event.json
+          name: pgextassure-admission-integration
+          path: |
+            pgextassure-admission-event.json
+            pgextassure-splunk-hec.json
+            pgextassure-integration-export.json
           if-no-files-found: error
           retention-days: 30

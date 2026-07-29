@@ -37,6 +37,14 @@ from .enterprise import (
     AdmissionEnforcementError,
     enforce_pilot_package,
 )
+from .integrations import (
+    INTEGRATION_PROFILES,
+    AdmissionEventError,
+    IntegrationError,
+    IntegrationProjection,
+    load_admission_event,
+    project_admission_event,
+)
 from .models import Finding, ScanManifest, ScanReport, Severity
 from .pilot import (
     PilotPackage,
@@ -77,6 +85,7 @@ __all__ = [
     "AdmissionError",
     "AdmissionEnforcement",
     "AdmissionEnforcementError",
+    "AdmissionEventError",
     "AdmissionReceipt",
     "AdmissionReceiptVerification",
     "Baseline",
@@ -91,6 +100,9 @@ __all__ = [
     "GenerationInput",
     "GenerationPlan",
     "GenerationPlanError",
+    "INTEGRATION_PROFILES",
+    "IntegrationError",
+    "IntegrationProjection",
     "PilotPackage",
     "PilotPackageError",
     "PilotPackageVerification",
@@ -120,11 +132,13 @@ __all__ = [
     "evaluate_admission",
     "enforce_pilot_package",
     "load_generation_plan",
+    "load_admission_event",
     "load_baseline",
     "load_suppressions",
     "load_trust_policy",
     "load_scope_plan",
     "parse_scope_plan",
+    "project_admission_event",
     "scan_path",
     "sign_evidence_bundle",
     "verify_evidence_bundle",

@@ -20,7 +20,8 @@ Current contracts:
 - Enterprise Trust Policy `1.0`;
 - Admission Receipt `1.0`;
 - Enterprise Pilot Package manifest `1.0`;
-- Enterprise Admission Event `1.0`.
+- Enterprise Admission Event `1.0`;
+- Integration Export Manifest `1.0`.
 
 Agent Review Pack `1.0` is described by
 [`agent-review-pack-1.0.schema.json`](../schemas/agent-review-pack-1.0.schema.json).
@@ -64,6 +65,11 @@ Enterprise Admission Event `1.0` is described by
 [`admission-event-1.0.schema.json`](../schemas/admission-event-1.0.schema.json).
 It is emitted only after package, signature, receipt, external trust anchors,
 and request context have been recomputed by the one-shot enterprise gate.
+
+Integration Export Manifest `1.0` is described by
+[`integration-export-1.0.schema.json`](../schemas/integration-export-1.0.schema.json).
+It binds a vendor-specific HTTP payload to its exact Admission Event, profile,
+request path, media type, byte length, and SHA-256 digest.
 
 ## Coverage inventory
 
