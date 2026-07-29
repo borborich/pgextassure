@@ -37,6 +37,54 @@ class ScannerContractTests(unittest.TestCase):
             f"expected {rule_id!r} for {path}; got {rule_ids_from(report)!r}",
         )
 
+    def test_coverage_lists_every_skipped_regular_file_without_hashing_it(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "demo.sql").write_text("SELECT 1;\n", encoding="utf-8")
+            (root / "README.md").write_text("documentation\n", encoding="utf-8")
+            (root / "image.bin").write_bytes(b"\x00\x01")
+
+            report = scan_path(root)
+            coverage = report.coverage.to_dict()
+
+        self.assertEqual(1, coverage["analyzed_files"])
+        self.assertEqual(2, coverage["skipped_count"])
+        self.assertEqual(
+            [
+                {
+                    "path": "README.md",
+                    "kind": "regular",
+                    "reason": "unsupported_file_type",
+                    "size": 14,
+                },
+                {
+                    "path": "image.bin",
+                    "kind": "regular",
+                    "reason": "unsupported_file_type",
+                    "size": 2,
+                },
+            ],
+            coverage["skipped_files"],
+        )
+        self.assertRegex(coverage["digest"], r"^sha256:[0-9a-f]{64}$")
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "requires filesystem symlinks")
+    def test_coverage_records_unsupported_symlink_without_following_it(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "demo.sql").write_text("SELECT 1;\n", encoding="utf-8")
+            target = root / "notes.txt"
+            target.write_text("not analyzed\n", encoding="utf-8")
+            (root / "alias.txt").symlink_to(target.name)
+
+            report = scan_path(root)
+
+        skipped = {
+            item.path: item.to_dict() for item in report.coverage.skipped_files
+        }
+        self.assertEqual("unsupported_symlink", skipped["alias.txt"]["reason"])
+        self.assertNotIn("size", skipped["alias.txt"])
+
     def test_safe_fixture_tree_has_no_findings(self) -> None:
         report = scan(SAFE_ROOT)
         self.assertEqual(

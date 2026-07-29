@@ -21,6 +21,7 @@ from .admission import (
 )
 from .generation import GenerationPlanError, load_generation_plan
 from .models import SEVERITY_RANK, ScanReport, Severity
+from .policy import PolicyError, apply_policy, load_policy
 from .reporting import (
     render_grouped_json,
     render_json,
@@ -90,6 +91,14 @@ def _parser() -> argparse.ArgumentParser:
         help=(
             "explicit suppression evaluation date; defaults to the current "
             "UTC date when suppressions are supplied"
+        ),
+    )
+    scan.add_argument(
+        "--policy",
+        metavar="FILE",
+        help=(
+            "strict organization policy that owns the gate and constrains "
+            "baseline and suppression use"
         ),
     )
 
@@ -252,6 +261,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             rendered = render_baseline(report, created_on=created_on)
             result = EXIT_OK
         else:
+            policy = (
+                load_policy(arguments.policy) if arguments.policy else None
+            )
+            if policy is not None and arguments.fail_on != "none":
+                raise PolicyError(
+                    "--policy cannot be combined with --fail-on; "
+                    "the policy owns the gate"
+                )
             baseline = (
                 load_baseline(arguments.baseline)
                 if arguments.baseline
@@ -284,6 +301,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 suppressions=suppressions,
                 evaluated_on=evaluated_on,
             )
+            if policy is not None:
+                report = apply_policy(
+                    report,
+                    policy,
+                    baseline=baseline,
+                    suppressions=suppressions,
+                )
             sarif_path_prefix = (
                 _sarif_path_prefix(arguments.path)
                 if arguments.output_format == "sarif"
@@ -296,7 +320,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             result = (
                 EXIT_FINDINGS
-                if _threshold_reached(report, arguments.fail_on)
+                if (
+                    report.policy is not None
+                    and report.policy["result"]["blocked"]
+                )
+                or _threshold_reached(report, arguments.fail_on)
                 else EXIT_OK
             )
     except GenerationPlanError as error:
@@ -308,6 +336,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     except AdmissionError as error:
         print(
             f"pgextassure: admission: {sanitize_terminal_text(error)}",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    except PolicyError as error:
+        print(
+            f"pgextassure: policy: {sanitize_terminal_text(error)}",
             file=sys.stderr,
         )
         return EXIT_USAGE

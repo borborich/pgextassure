@@ -100,6 +100,9 @@ def _base_wheel_files() -> dict[str, bytes]:
             continue
         relative = source.relative_to(SOURCE_ROOT).as_posix()
         files[relative] = source.read_bytes()
+    schema_root = PROJECT_ROOT / "schemas"
+    for source in sorted(schema_root.glob("*.json")):
+        files[f"{NAME}/schemas/{source.name}"] = source.read_bytes()
     files[f"{DIST_INFO}/METADATA"] = _metadata()
     files[f"{DIST_INFO}/WHEEL"] = _wheel_metadata()
     files[f"{DIST_INFO}/entry_points.txt"] = _entry_points()
@@ -198,7 +201,7 @@ def _sdist_sources() -> Iterable[tuple[Path, str]]:
         source = PROJECT_ROOT / name
         if source.is_file():
             yield source, name
-    for directory in ("src", "tests", "docs"):
+    for directory in ("src", "tests", "docs", "schemas"):
         root = PROJECT_ROOT / directory
         if not root.exists():
             continue

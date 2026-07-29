@@ -57,6 +57,25 @@ class PackagingContractTests(unittest.TestCase):
             metadata,
         )
 
+    def test_wheel_and_sdist_include_published_schemas(self) -> None:
+        wheel_files = _build_backend._base_wheel_files()
+        sdist_paths = {
+            relative for _source, relative in _build_backend._sdist_sources()
+        }
+
+        self.assertIn(
+            "pgextassure/schemas/scan-report-1.3.schema.json",
+            wheel_files,
+        )
+        self.assertIn(
+            "pgextassure/schemas/policy-1.0.schema.json",
+            wheel_files,
+        )
+        self.assertIn(
+            "schemas/scan-report-1.3.schema.json",
+            sdist_paths,
+        )
+
     @unittest.skipUnless(hasattr(os, "symlink"), "requires filesystem symlinks")
     def test_wheel_omits_symlinked_python_sources(self) -> None:
         with TemporaryDirectory() as temporary:

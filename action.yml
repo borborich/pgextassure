@@ -35,6 +35,10 @@ inputs:
     description: Optional YYYY-MM-DD suppression evaluation date
     required: false
     default: ""
+  policy:
+    description: Optional strict organization policy that owns the gate
+    required: false
+    default: ""
   fail-on:
     description: Minimum blocking severity (critical, high, medium, low, or none)
     required: false
@@ -67,6 +71,7 @@ runs:
         PGEXTASSURE_INPUT_BASELINE: ${{ inputs.baseline }}
         PGEXTASSURE_INPUT_SUPPRESSIONS: ${{ inputs.suppressions }}
         PGEXTASSURE_INPUT_EVALUATED_ON: ${{ inputs.evaluated-on }}
+        PGEXTASSURE_INPUT_POLICY: ${{ inputs.policy }}
       run: |
         args=(
           scan
@@ -87,6 +92,9 @@ runs:
         fi
         if [[ -n "$PGEXTASSURE_INPUT_EVALUATED_ON" ]]; then
           args+=("--evaluated-on=$PGEXTASSURE_INPUT_EVALUATED_ON")
+        fi
+        if [[ -n "$PGEXTASSURE_INPUT_POLICY" ]]; then
+          args+=("--policy=$PGEXTASSURE_INPUT_POLICY")
         fi
         args+=(-- "$PGEXTASSURE_INPUT_PATH")
         python -I -m pgextassure "${args[@]}"

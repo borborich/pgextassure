@@ -72,7 +72,7 @@ class GenerationPlanTests(unittest.TestCase):
 
         self.assertIn("update.install-script-missing", rule_ids_from(baseline))
         self.assertNotIn("update.install-script-missing", rule_ids_from(report))
-        self.assertEqual("1.1", report.schema_version)
+        self.assertEqual("1.3", report.schema_version)
         self.assertIsNotNone(report.generation)
         assert report.generation is not None
         self.assertEqual(
@@ -456,13 +456,13 @@ class GenerationPlanTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stderr)
         document = parse_json_stdout(result)
-        self.assertEqual("1.1", document["schema_version"])
+        self.assertEqual("1.3", document["schema_version"])
         self.assertIn("generation", document)
         self.assertEqual(
             report.generation,
             grouped["generation"],
         )
-        self.assertEqual("1.1", grouped["source_report_schema_version"])
+        self.assertEqual("1.3", grouped["source_report_schema_version"])
         assert report.generation is not None
         plan_digest = report.generation["plan"]["digest"]
         self.assertIn(plan_digest, text)

@@ -93,13 +93,13 @@ stale or unused.
 
 ## Report and gate behavior
 
-Without admission state, existing report schemas and `--fail-on` behavior are
-unchanged.
+Admission state does not change the report schema version; its metadata is an
+optional top-level object.
 
 With a baseline or suppressions:
 
-- regular JSON uses schema `1.2` and adds an `admission` object;
-- grouped JSON uses schema `1.1`, retains every root cause, and annotates each
+- regular JSON uses schema `1.3` and adds an `admission` object;
+- grouped JSON uses schema `1.2`, retains every root cause, and annotates each
   disposition;
 - SARIF retains every result, records root-cause/status properties, marks
   baselined results as unchanged, and uses standard external suppressions for
@@ -119,3 +119,9 @@ mismatches, overlapping dispositions, and stale ruleset versions.
 
 Admission state records a scoped human decision. It does not prove
 exploitability, remediation, runtime safety, or organizational authorization.
+
+Normative contracts are published for
+[baselines](../schemas/baseline-1.0.schema.json) and
+[suppressions](../schemas/suppressions-1.0.schema.json). An
+[organization policy](organization-policy.md) can make the gate centrally
+reviewed and constrain whether these mechanisms are allowed.
