@@ -41,6 +41,13 @@ from .scope import (
     load_scope_plan,
     parse_scope_plan,
 )
+from .signing import (
+    CorporateSignature,
+    CorporateSignatureVerification,
+    SigningError,
+    sign_evidence_bundle,
+    verify_evidence_signature,
+)
 from ._version import PACKAGE_VERSION, RELEASE_VERSION
 
 __all__ = [
@@ -63,6 +70,9 @@ __all__ = [
     "ScopeExclusion",
     "ScopePlan",
     "ScopePlanError",
+    "CorporateSignature",
+    "CorporateSignatureVerification",
+    "SigningError",
     "Severity",
     "Suppression",
     "SuppressionSet",
@@ -78,7 +88,9 @@ __all__ = [
     "load_scope_plan",
     "parse_scope_plan",
     "scan_path",
+    "sign_evidence_bundle",
     "verify_evidence_bundle",
+    "verify_evidence_signature",
 ]
 
 __version__ = PACKAGE_VERSION

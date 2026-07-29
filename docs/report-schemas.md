@@ -15,7 +15,8 @@ Current contracts:
 - baseline `1.0`;
 - suppressions `1.0`;
 - organization policy `1.0`;
-- Evidence Bundle index `1.0`.
+- Evidence Bundle index `1.0`;
+- Corporate Evidence Signature statement `1.0`.
 
 Agent Review Pack `1.0` is described by
 [`agent-review-pack-1.0.schema.json`](../schemas/agent-review-pack-1.0.schema.json).
@@ -34,6 +35,12 @@ index is described by
 The offline verifier additionally checks archive safety, payload hashes,
 manifest/coverage recomputation, exact control-input digests, and SPDX/report
 consistency.
+
+Corporate Evidence Signature statement `1.0` is described by
+[`evidence-signature-1.0.schema.json`](../schemas/evidence-signature-1.0.schema.json).
+The offline verifier additionally requires canonical JSON, a matching
+RSA-PSS-SHA256 signature with an RSA key of at least 3072 bits, exact subject
+bytes, and exact verified Evidence Bundle metadata.
 
 ## Coverage inventory
 

@@ -187,9 +187,27 @@ pgextassure evidence verify pgextassure-evidence.zip
 
 Evidence Bundle 1.0 binds the report, analyzed-source manifest, coverage,
 limited SPDX 2.3 inventory, and exact control-input bytes. It contains no
-source-file payloads and can be signed externally with GitHub/Sigstore
-attestations. See [Evidence bundles](docs/evidence-bundles.md) and the
-[enterprise pilot](docs/enterprise-pilot.md).
+source-file payloads. It can be signed with GitHub/Sigstore attestations or
+with an offline corporate RSA key:
+
+```bash
+pgextassure evidence sign pgextassure-evidence.zip \
+  --private-key corporate-release-key.pem \
+  --signer-id acme-security/postgresql-admission-key-01 \
+  --statement-output pgextassure-signature.json \
+  --signature-output pgextassure-signature.bin \
+  --public-key-output pgextassure-public-key.pem
+
+pgextassure evidence verify-signature pgextassure-evidence.zip \
+  --statement pgextassure-signature.json \
+  --signature pgextassure-signature.bin \
+  --public-key pgextassure-public-key.pem \
+  --expected-key-sha256 'sha256:TRUSTED_64_HEX_DIGEST'
+```
+
+See [Evidence bundles](docs/evidence-bundles.md),
+[Corporate Evidence Signature Profile 1.0](docs/corporate-signatures.md), and
+the [enterprise pilot](docs/enterprise-pilot.md).
 
 Exit behavior is controlled by `--fail-on`:
 

@@ -69,8 +69,32 @@ dependencies. Those boundaries remain explicit in `report.json`.
 
 ## Signing and verification
 
-The signature is external to the ZIP to avoid a circular digest. In GitHub
-Actions, use `actions/attest` with:
+The signature is external to the ZIP to avoid a circular digest.
+
+For network-independent corporate signing and verification, use Corporate
+Evidence Signature Profile 1.0:
+
+```bash
+pgextassure evidence sign pgextassure-evidence.zip \
+  --private-key corporate-release-key.pem \
+  --signer-id acme-security/postgresql-admission-key-01 \
+  --statement-output pgextassure-signature.json \
+  --signature-output pgextassure-signature.bin \
+  --public-key-output pgextassure-public-key.pem
+
+pgextassure evidence verify-signature pgextassure-evidence.zip \
+  --statement pgextassure-signature.json \
+  --signature pgextassure-signature.bin \
+  --public-key pgextassure-public-key.pem \
+  --expected-key-sha256 'sha256:TRUSTED_64_HEX_DIGEST'
+```
+
+The signer and verifier both validate the complete Evidence Bundle. The
+detached statement also binds the verified gate, manifest, coverage, policy,
+signer, and public-key fingerprint. See
+[Corporate signatures](corporate-signatures.md).
+
+In GitHub Actions, an alternative is to use `actions/attest` with:
 
 - subject: `pgextassure-evidence.zip`;
 - predicate type:

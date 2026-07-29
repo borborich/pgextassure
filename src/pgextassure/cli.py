@@ -52,6 +52,11 @@ from .review import (
     verify_decision_ledger,
 )
 from .scanner import TOOL_VERSION, ScanError, ScanInputError, scan_path
+from .signing import (
+    SigningError,
+    sign_evidence_bundle,
+    verify_evidence_signature,
+)
 from .scope import ScopePlanError, load_scope_plan
 
 
@@ -266,6 +271,71 @@ def _parser() -> argparse.ArgumentParser:
         "--sbom-output",
         metavar="FILE",
         help="write the verified SPDX inventory to a separate file",
+    )
+    evidence_sign = evidence_commands.add_parser(
+        "sign",
+        help="sign a verified bundle with an offline corporate RSA key",
+    )
+    evidence_sign.add_argument("path", metavar="BUNDLE")
+    evidence_sign.add_argument("--private-key", metavar="FILE", required=True)
+    evidence_sign.add_argument("--signer-id", required=True)
+    evidence_sign.add_argument(
+        "--created-on",
+        metavar="YYYY-MM-DD",
+        help="signature date; defaults to the current UTC date",
+    )
+    evidence_sign.add_argument(
+        "--passphrase-env",
+        metavar="NAME",
+        help="environment variable containing the private-key passphrase",
+    )
+    evidence_sign.add_argument("--openssl", metavar="FILE")
+    evidence_sign.add_argument(
+        "--statement-output",
+        metavar="FILE",
+        required=True,
+    )
+    evidence_sign.add_argument(
+        "--signature-output",
+        metavar="FILE",
+        required=True,
+    )
+    evidence_sign.add_argument(
+        "--public-key-output",
+        metavar="FILE",
+        required=True,
+    )
+    evidence_signature_verify = evidence_commands.add_parser(
+        "verify-signature",
+        help="verify a corporate signature and its Evidence Bundle offline",
+    )
+    evidence_signature_verify.add_argument("path", metavar="BUNDLE")
+    evidence_signature_verify.add_argument(
+        "--statement",
+        metavar="FILE",
+        required=True,
+    )
+    evidence_signature_verify.add_argument(
+        "--signature",
+        metavar="FILE",
+        required=True,
+    )
+    evidence_signature_verify.add_argument(
+        "--public-key",
+        metavar="FILE",
+        required=True,
+    )
+    evidence_signature_verify.add_argument(
+        "--expected-key-sha256",
+        metavar="sha256:DIGEST",
+        help="trusted expected SHA-256 of the DER public key",
+    )
+    evidence_signature_verify.add_argument("--openssl", metavar="FILE")
+    evidence_signature_verify.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
     )
     return parser
 
@@ -489,6 +559,19 @@ def _render_verification_summary(summary: dict[str, object]) -> str:
     ) + "\n"
 
 
+def _render_signature_summary(summary: dict[str, object]) -> str:
+    return "\n".join(
+        (
+            f"PgExtAssure corporate signature {summary['schema_version']}: valid",
+            f"Signer: {summary['signer_id']}",
+            f"Profile: {summary['profile']}",
+            f"Gate: {summary['gate']}",
+            f"Subject: {summary['subject_digest']}",
+            f"Public key: {summary['public_key_sha256']}",
+        )
+    ) + "\n"
+
+
 def _silence_broken_stdout() -> None:
     """Prevent Python's shutdown flush from replacing the intended exit code."""
 
@@ -571,6 +654,119 @@ def main(argv: Sequence[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return EXIT_USAGE
+        except BrokenPipeError:
+            _silence_broken_stdout()
+        except OSError as error:
+            print(
+                "pgextassure: cannot write output: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        return EXIT_OK
+
+    if (
+        arguments.command == "evidence"
+        and arguments.evidence_command == "sign"
+    ):
+        try:
+            outputs = (
+                arguments.statement_output,
+                arguments.signature_output,
+                arguments.public_key_output,
+            )
+            output_paths = {os.path.abspath(value) for value in outputs}
+            if len(output_paths) != len(outputs):
+                raise SigningError("signature output paths must be distinct")
+            protected_paths = {
+                os.path.abspath(arguments.path),
+                os.path.abspath(arguments.private_key),
+            }
+            if arguments.openssl:
+                protected_paths.add(os.path.abspath(arguments.openssl))
+            if output_paths & protected_paths:
+                raise SigningError(
+                    "signature outputs must not overwrite signing inputs"
+                )
+            passphrase = None
+            if arguments.passphrase_env:
+                if arguments.passphrase_env not in os.environ:
+                    raise SigningError(
+                        "private-key passphrase environment variable is absent"
+                    )
+                passphrase = os.environ[arguments.passphrase_env]
+            created_on = (
+                parse_admission_date(
+                    arguments.created_on,
+                    label="signature created_on",
+                )
+                if arguments.created_on
+                else datetime.now(timezone.utc).date()
+            )
+            signed = sign_evidence_bundle(
+                arguments.path,
+                private_key_path=arguments.private_key,
+                signer_id=arguments.signer_id,
+                created_on=created_on,
+                passphrase=passphrase,
+                openssl_path=arguments.openssl,
+            )
+            _write_binary_output(arguments.statement_output, signed.statement)
+            _write_binary_output(arguments.signature_output, signed.signature)
+            _write_binary_output(arguments.public_key_output, signed.public_key)
+            sys.stdout.write(_render_signature_summary(signed.summary))
+            sys.stdout.flush()
+        except (SigningError, AdmissionError) as error:
+            print(
+                f"pgextassure: corporate signing: {sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        except BrokenPipeError:
+            _silence_broken_stdout()
+        except OSError as error:
+            print(
+                "pgextassure: cannot write output: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        return EXIT_OK
+
+    if (
+        arguments.command == "evidence"
+        and arguments.evidence_command == "verify-signature"
+    ):
+        try:
+            verification = verify_evidence_signature(
+                arguments.path,
+                statement_path=arguments.statement,
+                signature_path=arguments.signature,
+                public_key_path=arguments.public_key,
+                expected_public_key_sha256=arguments.expected_key_sha256,
+                openssl_path=arguments.openssl,
+            )
+            rendered = (
+                json.dumps(
+                    verification.summary,
+                    ensure_ascii=False,
+                    allow_nan=False,
+                    sort_keys=True,
+                    indent=2,
+                )
+                + "\n"
+                if arguments.output_format == "json"
+                else _render_signature_summary(verification.summary)
+            )
+            sys.stdout.write(rendered)
+            sys.stdout.flush()
+        except SigningError as error:
+            print(
+                "pgextassure: corporate signature verification failed: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_SCAN_ERROR
         except BrokenPipeError:
             _silence_broken_stdout()
         except OSError as error:
