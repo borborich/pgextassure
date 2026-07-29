@@ -1,0 +1,19 @@
+{
+  "created_on": "2026-07-29",
+  "root_causes": [
+    {
+      "root_cause_id": "sha256:bfed9ef89a032212d68e910fe1376f4d4aa0abab48d3509a8c7a4e7272914318",
+      "rule_id": "sql.copy-program",
+      "severity": "critical"
+    }
+  ],
+  "schema_version": "1.0",
+  "source": {
+    "manifest_digest": "sha256:1ed98f86c08a2153256ed5613f72b3dad54524651a0f57039373ff118ea007c5"
+  },
+  "tool": {
+    "name": "pgextassure",
+    "ruleset_version": "2026-07-28.4",
+    "version": "0.1.0-alpha.2"
+  }
+}

@@ -78,9 +78,9 @@ pgextassure scan /path/to/postgres-extension \
   --fail-on none
 ```
 
-`grouped-json` is a separate report type, so the existing JSON v1 and SARIF
-contracts remain unchanged. Its summary reports both raw finding count and
-root-cause count. Rules without an explicit semantic identity remain
+`grouped-json` is a separate report type, so scans without admission state keep
+the existing JSON v1 and SARIF contracts. Its summary reports both raw finding
+count and root-cause count. Rules without an explicit semantic identity remain
 location-scoped and are never merged heuristically.
 
 If reviewed build metadata generates an install SQL or control file that is
@@ -96,6 +96,25 @@ pgextassure scan /path/to/postgres-extension \
 PgExtAssure verifies every declared input SHA-256 and may apply bounded literal
 template substitutions in memory. It never runs the build. See
 [Generation plans](docs/generation-plans.md) for the schema and trust boundary.
+
+To introduce a gate into a repository with existing findings, create and review
+a root-cause baseline:
+
+```bash
+pgextassure baseline /path/to/postgres-extension \
+  --created-on 2026-07-29 \
+  --output pgextassure-baseline.json
+
+pgextassure scan /path/to/postgres-extension \
+  --baseline pgextassure-baseline.json \
+  --format grouped-json \
+  --fail-on high
+```
+
+New root causes still block. Baselined findings remain visible. Temporary
+exceptions require an exact root-cause ID, owner, reason, and expiry date; an
+expired exception blocks again. See
+[Baselines and suppressions](docs/admission-state.md).
 
 Exit behavior is controlled by `--fail-on`:
 
@@ -182,6 +201,9 @@ Action inputs:
 | `format` | `sarif` | `text`, `json`, `grouped-json`, or `sarif` |
 | `output` | `pgextassure.sarif` | Report file; set to an empty string for stdout |
 | `generation-plan` | empty | Optional reviewed, pinned generated-artifact declaration |
+| `baseline` | empty | Optional reviewed root-cause baseline |
+| `suppressions` | empty | Optional owner-attributed expiring suppressions |
+| `evaluated-on` | current UTC date | Explicit `YYYY-MM-DD` suppression evaluation date |
 | `fail-on` | `none` | Minimum blocking severity, or `none` |
 | `python-version` | `3.11` | Python used to run PgExtAssure |
 
@@ -376,6 +398,7 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Rule reference](docs/rules.md)
 - [Threat model](docs/threat-model.md)
 - [Generation plans](docs/generation-plans.md)
+- [Baselines and suppressions](docs/admission-state.md)
 - [Roadmap](docs/roadmap.md)
 - [Public corpus pilot](benchmarks/public-corpus/README.md)
 

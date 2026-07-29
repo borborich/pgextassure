@@ -6,6 +6,15 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Ruleset-bound root-cause baselines for introducing a CI gate without hiding
+  existing findings.
+- Exact, owner-attributed suppressions with required reasons and inclusive
+  expiry dates; expired exceptions block again.
+- Admission provenance and dispositions in JSON, grouped JSON, SARIF, text,
+  and the composite GitHub Action.
+
 ## [0.1.0-alpha.2] - 2026-07-29
 
 ### Added

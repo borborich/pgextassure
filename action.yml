@@ -23,6 +23,18 @@ inputs:
     description: Optional pinned JSON declaration for build-generated artifacts
     required: false
     default: ""
+  baseline:
+    description: Optional root-cause baseline created by PgExtAssure
+    required: false
+    default: ""
+  suppressions:
+    description: Optional owner-attributed root-cause suppressions
+    required: false
+    default: ""
+  evaluated-on:
+    description: Optional YYYY-MM-DD suppression evaluation date
+    required: false
+    default: ""
   fail-on:
     description: Minimum blocking severity (critical, high, medium, low, or none)
     required: false
@@ -52,6 +64,9 @@ runs:
         PGEXTASSURE_INPUT_OUTPUT: ${{ inputs.output }}
         PGEXTASSURE_INPUT_FAIL_ON: ${{ inputs.fail-on }}
         PGEXTASSURE_INPUT_GENERATION_PLAN: ${{ inputs.generation-plan }}
+        PGEXTASSURE_INPUT_BASELINE: ${{ inputs.baseline }}
+        PGEXTASSURE_INPUT_SUPPRESSIONS: ${{ inputs.suppressions }}
+        PGEXTASSURE_INPUT_EVALUATED_ON: ${{ inputs.evaluated-on }}
       run: |
         args=(
           scan
@@ -63,6 +78,15 @@ runs:
         fi
         if [[ -n "$PGEXTASSURE_INPUT_GENERATION_PLAN" ]]; then
           args+=("--generation-plan=$PGEXTASSURE_INPUT_GENERATION_PLAN")
+        fi
+        if [[ -n "$PGEXTASSURE_INPUT_BASELINE" ]]; then
+          args+=("--baseline=$PGEXTASSURE_INPUT_BASELINE")
+        fi
+        if [[ -n "$PGEXTASSURE_INPUT_SUPPRESSIONS" ]]; then
+          args+=("--suppressions=$PGEXTASSURE_INPUT_SUPPRESSIONS")
+        fi
+        if [[ -n "$PGEXTASSURE_INPUT_EVALUATED_ON" ]]; then
+          args+=("--evaluated-on=$PGEXTASSURE_INPUT_EVALUATED_ON")
         fi
         args+=(-- "$PGEXTASSURE_INPUT_PATH")
         python -I -m pgextassure "${args[@]}"

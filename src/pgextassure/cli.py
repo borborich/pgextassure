@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 import sys
 import tempfile
 from typing import Sequence
 
+from .admission import (
+    AdmissionError,
+    apply_admission,
+    gate_root_causes,
+    load_baseline,
+    load_suppressions,
+    parse_admission_date,
+    render_baseline,
+)
 from .generation import GenerationPlanError, load_generation_plan
 from .models import SEVERITY_RANK, ScanReport, Severity
 from .reporting import (
@@ -62,6 +72,46 @@ def _parser() -> argparse.ArgumentParser:
             "artifacts; templates are rendered in memory without executing a build"
         ),
     )
+    scan.add_argument(
+        "--baseline",
+        metavar="FILE",
+        help="strict root-cause baseline created by the baseline subcommand",
+    )
+    scan.add_argument(
+        "--suppressions",
+        metavar="FILE",
+        help=(
+            "strict owner-attributed root-cause suppressions with expiry dates"
+        ),
+    )
+    scan.add_argument(
+        "--evaluated-on",
+        metavar="YYYY-MM-DD",
+        help=(
+            "explicit suppression evaluation date; defaults to the current "
+            "UTC date when suppressions are supplied"
+        ),
+    )
+
+    baseline = subcommands.add_parser(
+        "baseline",
+        help="create a root-cause baseline without suppressing report evidence",
+    )
+    baseline.add_argument("path", metavar="PATH")
+    baseline.add_argument("--output", metavar="FILE")
+    baseline.add_argument(
+        "--created-on",
+        metavar="YYYY-MM-DD",
+        help="baseline creation date; defaults to the current UTC date",
+    )
+    baseline.add_argument(
+        "--generation-plan",
+        metavar="FILE",
+        help=(
+            "strict JSON declaration for pinned build-generated SQL/control "
+            "artifacts; templates are rendered in memory without executing a build"
+        ),
+    )
     return parser
 
 
@@ -97,6 +147,13 @@ def _threshold_reached(report: ScanReport, threshold: str) -> bool:
     if threshold == "none":
         return False
     minimum = SEVERITY_RANK[Severity(threshold)]
+    if report.admission is not None:
+        return bool(
+            gate_root_causes(
+                report,
+                minimum_severity=Severity(threshold),
+            )
+        )
     return any(
         SEVERITY_RANK[finding.severity] >= minimum for finding in report.findings
     )
@@ -172,8 +229,6 @@ def _silence_broken_stdout() -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     arguments = parser.parse_args(argv)
-    if arguments.command != "scan":
-        parser.error("a command is required")
 
     try:
         generation_plan = (
@@ -185,9 +240,74 @@ def main(argv: Sequence[str] | None = None) -> int:
             arguments.path,
             generation_plan=generation_plan,
         )
+        if arguments.command == "baseline":
+            created_on = (
+                parse_admission_date(
+                    arguments.created_on,
+                    label="baseline created_on",
+                )
+                if arguments.created_on
+                else datetime.now(timezone.utc).date()
+            )
+            rendered = render_baseline(report, created_on=created_on)
+            result = EXIT_OK
+        else:
+            baseline = (
+                load_baseline(arguments.baseline)
+                if arguments.baseline
+                else None
+            )
+            suppressions = (
+                load_suppressions(arguments.suppressions)
+                if arguments.suppressions
+                else None
+            )
+            if arguments.evaluated_on and suppressions is None:
+                raise AdmissionError(
+                    "--evaluated-on requires --suppressions"
+                )
+            evaluated_on = (
+                parse_admission_date(
+                    arguments.evaluated_on,
+                    label="suppression evaluation date",
+                )
+                if arguments.evaluated_on
+                else (
+                    datetime.now(timezone.utc).date()
+                    if suppressions is not None
+                    else None
+                )
+            )
+            report = apply_admission(
+                report,
+                baseline=baseline,
+                suppressions=suppressions,
+                evaluated_on=evaluated_on,
+            )
+            sarif_path_prefix = (
+                _sarif_path_prefix(arguments.path)
+                if arguments.output_format == "sarif"
+                else ""
+            )
+            rendered = _render(
+                report,
+                arguments.output_format,
+                sarif_path_prefix=sarif_path_prefix,
+            )
+            result = (
+                EXIT_FINDINGS
+                if _threshold_reached(report, arguments.fail_on)
+                else EXIT_OK
+            )
     except GenerationPlanError as error:
         print(
             f"pgextassure: generation plan: {sanitize_terminal_text(error)}",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    except AdmissionError as error:
+        print(
+            f"pgextassure: admission: {sanitize_terminal_text(error)}",
             file=sys.stderr,
         )
         return EXIT_USAGE
@@ -204,21 +324,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return EXIT_SCAN_ERROR
 
-    sarif_path_prefix = (
-        _sarif_path_prefix(arguments.path)
-        if arguments.output_format == "sarif"
-        else ""
-    )
-    rendered = _render(
-        report,
-        arguments.output_format,
-        sarif_path_prefix=sarif_path_prefix,
-    )
-    result = (
-        EXIT_FINDINGS
-        if _threshold_reached(report, arguments.fail_on)
-        else EXIT_OK
-    )
     try:
         if arguments.output:
             _write_output(arguments.output, rendered)

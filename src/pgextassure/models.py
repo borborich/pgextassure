@@ -119,6 +119,7 @@ class ScanReport:
     summary: ScanSummary
     findings: tuple[Finding, ...]
     generation: dict[str, Any] | None = None
+    admission: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         document = {
@@ -130,6 +131,8 @@ class ScanReport:
         }
         if self.generation is not None:
             document["generation"] = self.generation
+        if self.admission is not None:
+            document["admission"] = self.admission
         return document
 
 

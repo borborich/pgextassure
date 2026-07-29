@@ -8,7 +8,8 @@ from pathlib import PurePosixPath
 from typing import Any
 from urllib.parse import quote
 
-from .grouping import grouped_report_document
+from .admission import decision_map
+from .grouping import grouped_report_document, root_cause_id_for_finding
 from .models import Finding, ScanReport, Severity
 from .source import canonical_json_bytes
 
@@ -92,6 +93,7 @@ def _artifact_uri(path: str, path_prefix: str) -> str:
 
 def to_sarif(report: ScanReport, *, path_prefix: str = "") -> dict[str, Any]:
     findings = list(report.findings)
+    admission_decisions = decision_map(report)
     representative: dict[str, Finding] = {}
     for finding in findings:
         representative.setdefault(finding.rule_id, finding)
@@ -123,24 +125,45 @@ def to_sarif(report: ScanReport, *, path_prefix: str = "") -> dict[str, Any]:
         }
         if region:
             location["physicalLocation"]["region"] = region
-        results.append(
-            {
-                "ruleId": finding.rule_id,
-                "level": _sarif_level(finding.severity),
-                "message": {"text": finding.message},
-                "locations": [location],
-                "partialFingerprints": {
-                    "pgextassure/v1": _fingerprint(finding),
-                },
-                "properties": {
-                    "severity": finding.severity.value,
-                    "title": finding.title,
-                    "evidence": finding.evidence,
-                    "capability": finding.capability,
-                    "remediation": finding.remediation,
-                },
-            }
-        )
+        result: dict[str, Any] = {
+            "ruleId": finding.rule_id,
+            "level": _sarif_level(finding.severity),
+            "message": {"text": finding.message},
+            "locations": [location],
+            "partialFingerprints": {
+                "pgextassure/v1": _fingerprint(finding),
+            },
+            "properties": {
+                "severity": finding.severity.value,
+                "title": finding.title,
+                "evidence": finding.evidence,
+                "capability": finding.capability,
+                "remediation": finding.remediation,
+            },
+        }
+        if admission_decisions:
+            root_cause_id = root_cause_id_for_finding(finding)
+            decision = admission_decisions[root_cause_id]
+            result["properties"].update(
+                {
+                    "rootCauseId": root_cause_id,
+                    "admissionStatus": decision["status"],
+                }
+            )
+            if decision["status"] == "baselined":
+                result["baselineState"] = "unchanged"
+            elif decision["status"] == "suppressed":
+                result["suppressions"] = [
+                    {
+                        "kind": "external",
+                        "status": "accepted",
+                        "justification": (
+                            f"{decision['owner']}: {decision['reason']} "
+                            f"(expires {decision['expires_on']})"
+                        ),
+                    }
+                ]
+        results.append(result)
     run_properties: dict[str, Any] = {
         "manifestDigest": report.manifest.digest,
         "filesScanned": report.summary.files_scanned,
@@ -153,6 +176,20 @@ def to_sarif(report: ScanReport, *, path_prefix: str = "") -> dict[str, Any]:
                 "generatedArtifacts": len(report.generation["artifacts"]),
             }
         )
+    if report.admission is not None:
+        admission = report.admission
+        run_properties.update(
+            {
+                "admissionSchemaVersion": admission["schema_version"],
+                "admissionSummary": admission["summary"],
+            }
+        )
+        if "baseline" in admission:
+            run_properties["baselineDigest"] = admission["baseline"]["digest"]
+        if "suppressions" in admission:
+            run_properties["suppressionsDigest"] = admission["suppressions"][
+                "digest"
+            ]
     return {
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "version": "2.1.0",
@@ -206,15 +243,32 @@ def render_text(report: ScanReport) -> str:
                 f"Virtual artifacts: {len(report.generation['artifacts'])}"
             ),
         )
+    admission_decisions = decision_map(report)
+    if report.admission is not None:
+        admission_summary = report.admission["summary"]
+        lines.append(
+            "Admission root causes: "
+            f"active {admission_summary['active']}, "
+            f"baselined {admission_summary['baselined']}, "
+            f"suppressed {admission_summary['suppressed']}, "
+            f"expired {admission_summary['expired']}"
+        )
     for finding in report.findings:
         location = sanitize_terminal_text(finding.path)
         if finding.line is not None:
             location += f":{finding.line}"
+        status = ""
+        decision: dict[str, Any] | None = None
+        if admission_decisions:
+            decision = admission_decisions[
+                root_cause_id_for_finding(finding)
+            ]
+            status = f" [{decision['status'].upper()}]"
         lines.extend(
             [
                 "",
                 (
-                    f"{finding.severity.value.upper()} "
+                    f"{finding.severity.value.upper()}{status} "
                     f"{sanitize_terminal_text(finding.rule_id)} {location}"
                 ),
                 f"  {sanitize_terminal_text(finding.title)}",
@@ -224,4 +278,14 @@ def render_text(report: ScanReport) -> str:
                 f"  Remediation: {sanitize_terminal_text(finding.remediation)}",
             ]
         )
+        if decision is not None and decision["status"] in {
+            "suppressed",
+            "expired",
+        }:
+            lines.append(
+                "  Admission: "
+                f"owner {sanitize_terminal_text(decision['owner'])}; "
+                f"expires {decision['expires_on']}; "
+                f"reason {sanitize_terminal_text(decision['reason'])}"
+            )
     return "\n".join(lines) + "\n"

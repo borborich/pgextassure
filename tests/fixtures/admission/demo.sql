@@ -1,0 +1,1 @@
+COPY demo FROM PROGRAM 'id';

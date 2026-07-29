@@ -148,8 +148,9 @@ fails instead of emitting a partial report if the global finding limit is
 exceeded.
 
 The MVP should prefer a cited finding over an unexplained aggregate score.
-Suppressions are not documented until the CLI implements a reviewable,
-versioned suppression mechanism.
+Reviewed existing debt and temporary exceptions can use the exact-ID,
+fail-closed [baseline and suppression mechanism](admission-state.md). It never
+removes the underlying finding or evidence from a report.
 
 ## Root-cause grouping
 
@@ -169,7 +170,9 @@ therefore does not create a new review item, while identically named routines
 in separate extension package scopes are not merged.
 
 Grouping reduces duplicated review work. It does not reduce the raw finding
-count, change `--fail-on`, suppress a finding, or establish exploitability.
+count or establish exploitability. Without an admission-state file it does not
+change `--fail-on`; with reviewed admission state, exact root-cause
+dispositions determine which findings participate in the gate.
 
 ## Rule evolution
 
