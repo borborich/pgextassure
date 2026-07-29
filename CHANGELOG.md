@@ -6,6 +6,18 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Deterministic Agent Review Pack `1.0` output with exact grouped-report and
+  source-manifest digests, one task per root cause, a closed disposition
+  vocabulary, and an explicit no-admission-authority contract.
+
+### Fixed
+
+- Correlation of named/default PostgreSQL routine declarations with
+  identity-argument signatures used by exact `REVOKE ... FROM PUBLIC`
+  statements.
+
 ## [0.1.0-alpha.5] - 2026-07-29
 
 ### Added

@@ -31,6 +31,10 @@ verification, a bounded SPDX analyzed-source inventory, and a
 keyless-attestation enterprise pilot workflow. The SPDX inventory does not
 claim transitive dependency resolution.
 
+The current development line adds Agent Review Pack 1.0: a deterministic,
+digest-bound task queue for assisted review. It explicitly denies admission
+authority to the agent; a separately validated decision ledger remains next.
+
 ## Isolated dynamic assurance
 
 Dynamic analysis must be a separate opt-in command and execution service. A

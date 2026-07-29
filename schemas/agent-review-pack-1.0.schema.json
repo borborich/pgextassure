@@ -1,0 +1,110 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/schemas/agent-review-pack-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "admission": {"type": "object"},
+    "authority": {
+      "additionalProperties": false,
+      "properties": {
+        "can_grant_admission": {"const": false},
+        "statement": {"minLength": 1, "type": "string"}
+      },
+      "required": ["can_grant_admission", "statement"],
+      "type": "object"
+    },
+    "coverage": {"type": "object"},
+    "generation": {"type": "object"},
+    "handling": {
+      "additionalProperties": false,
+      "properties": {
+        "contains_source_files": {"const": false},
+        "may_contain_sensitive_evidence": {"const": true},
+        "source_upload_required": {"const": false}
+      },
+      "required": [
+        "source_upload_required",
+        "contains_source_files",
+        "may_contain_sensitive_evidence"
+      ],
+      "type": "object"
+    },
+    "policy": {"type": "object"},
+    "review_type": {"const": "pgextassure.agent-review-pack"},
+    "schema_version": {"const": "1.0"},
+    "subject": {
+      "additionalProperties": false,
+      "properties": {
+        "grouped_report_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "grouping_strategy": {"minLength": 1, "type": "string"},
+        "source_manifest_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_manifest_digest",
+        "grouped_report_digest",
+        "grouping_strategy"
+      ],
+      "type": "object"
+    },
+    "summary": {"type": "object"},
+    "tasks": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "required_output": {
+            "additionalProperties": false,
+            "properties": {
+              "disposition": {
+                "const": [
+                  "accepted-capability",
+                  "actionable-defect",
+                  "false-positive",
+                  "unresolved"
+                ]
+              },
+              "required_fields": {
+                "const": [
+                  "task_id",
+                  "disposition",
+                  "rationale",
+                  "citations",
+                  "reviewer"
+                ]
+              }
+            },
+            "required": ["disposition", "required_fields"],
+            "type": "object"
+          },
+          "root_cause": {"type": "object"},
+          "task_id": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": ["task_id", "root_cause", "required_output"],
+        "type": "object"
+      },
+      "maxItems": 10000,
+      "type": "array"
+    },
+    "tool": {"type": "object"}
+  },
+  "required": [
+    "schema_version",
+    "review_type",
+    "tool",
+    "subject",
+    "coverage",
+    "summary",
+    "authority",
+    "handling",
+    "tasks"
+  ],
+  "type": "object"
+}
