@@ -19,6 +19,11 @@ and releases use semantic versioning.
 - Mode-0600 SQLite replay/idempotency ledger binding unique request context,
   package digest, exact event bytes, and event SHA-256.
 - Closed Admission Gateway Error schema `1.0`.
+- Rootless Admission Gateway container with read-only-root deployment profiles,
+  persistent ledger storage, bounded temporary storage, probes, resource
+  limits, and default-deny Kubernetes egress.
+- Single-writer Docker Compose and Kubernetes examples plus an operator
+  deployment, backup, recovery, and upgrade runbook.
 
 ## [0.1.0-alpha.11] - 2026-07-29
 

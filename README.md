@@ -564,6 +564,7 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Enterprise pilot](docs/enterprise-pilot.md)
 - [Enterprise admission integrations](docs/enterprise-integrations.md)
 - [Admission Gateway](docs/admission-gateway.md)
+- [Admission Gateway deployment](docs/gateway-deployment.md)
 - [Roadmap](docs/roadmap.md)
 - [Public corpus pilot](benchmarks/public-corpus/README.md)
 

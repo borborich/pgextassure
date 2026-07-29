@@ -192,6 +192,8 @@ def build_editable(
 
 def _sdist_sources() -> Iterable[tuple[Path, str]]:
     top_level = (
+        ".dockerignore",
+        "Dockerfile",
         "pyproject.toml",
         "README.md",
         "LICENSE",
@@ -213,6 +215,8 @@ def _sdist_sources() -> Iterable[tuple[Path, str]]:
         "schemas",
         "examples",
         "admission",
+        "deploy",
+        "docker",
         "integration",
     ):
         root = PROJECT_ROOT / directory

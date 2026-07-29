@@ -30,6 +30,9 @@ enforces mTLS/authentication, request-size limits, and network policy.
 The ledger is created with mode `0600`. Existing ledgers granting group or
 other access, symlink ledgers, and symlinked ledger directories are rejected.
 
+For the rootless container, Compose and Kubernetes profiles, see
+[Admission Gateway deployment](gateway-deployment.md).
+
 ## Endpoints
 
 ### `GET /healthz`
