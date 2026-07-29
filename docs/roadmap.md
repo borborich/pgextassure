@@ -26,10 +26,10 @@ coverage inventory. Alpha 4 also provides bounded, evidence-free GitHub
 annotations and packaged adoption/strict policy templates. All report evidence
 is retained.
 
-Implemented after alpha 4 on `main`: deterministic Evidence Bundle 1.0,
-non-extracting offline verification, bounded SPDX analyzed-source inventory,
-and a keyless-attestation enterprise pilot workflow. The SPDX inventory does
-not claim transitive dependency resolution.
+Alpha 5 adds deterministic Evidence Bundle 1.0, non-extracting offline
+verification, a bounded SPDX analyzed-source inventory, and a
+keyless-attestation enterprise pilot workflow. The SPDX inventory does not
+claim transitive dependency resolution.
 
 ## Isolated dynamic assurance
 
