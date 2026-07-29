@@ -21,9 +21,16 @@ from .admission import (
 )
 from .generation import GenerationPlanError, load_generation_plan
 from .models import SEVERITY_RANK, ScanReport, Severity
-from .policy import PolicyError, apply_policy, load_policy
+from .policy import (
+    POLICY_TEMPLATE_PROFILES,
+    PolicyError,
+    apply_policy,
+    load_policy,
+    render_policy_template,
+)
 from .reporting import (
     render_grouped_json,
+    render_github_annotations,
     render_json,
     render_sarif,
     render_text,
@@ -101,6 +108,23 @@ def _parser() -> argparse.ArgumentParser:
             "baseline and suppression use"
         ),
     )
+    scan.add_argument(
+        "--github-annotations",
+        choices=("none", "active", "all"),
+        default="none",
+        help=(
+            "emit bounded root-cause workflow annotations to stdout; "
+            "requires --output"
+        ),
+    )
+    scan.add_argument(
+        "--max-annotations",
+        type=int,
+        choices=range(2, 51),
+        default=25,
+        metavar="2..50",
+        help="maximum workflow-command lines, including truncation notice",
+    )
 
     baseline = subcommands.add_parser(
         "baseline",
@@ -121,6 +145,15 @@ def _parser() -> argparse.ArgumentParser:
             "artifacts; templates are rendered in memory without executing a build"
         ),
     )
+    policy_template = subcommands.add_parser(
+        "policy-template",
+        help="write a packaged organization policy template for review",
+    )
+    policy_template.add_argument(
+        "profile",
+        choices=POLICY_TEMPLATE_PROFILES,
+    )
+    policy_template.add_argument("--output", metavar="FILE")
     return parser
 
 
@@ -239,7 +272,41 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     arguments = parser.parse_args(argv)
 
+    if arguments.command == "policy-template":
+        try:
+            rendered = render_policy_template(arguments.profile)
+            if arguments.output:
+                _write_output(arguments.output, rendered)
+            else:
+                sys.stdout.write(rendered)
+                sys.stdout.flush()
+        except PolicyError as error:
+            print(
+                f"pgextassure: policy: {sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        except BrokenPipeError:
+            _silence_broken_stdout()
+        except OSError as error:
+            print(
+                "pgextassure: cannot write output: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        return EXIT_OK
+
     try:
+        if (
+            arguments.command == "scan"
+            and arguments.github_annotations != "none"
+            and not arguments.output
+        ):
+            raise ScanInputError(
+                "--github-annotations requires --output so report stdout "
+                "remains machine-readable"
+            )
         generation_plan = (
             load_generation_plan(arguments.generation_plan)
             if arguments.generation_plan
@@ -318,6 +385,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 arguments.output_format,
                 sarif_path_prefix=sarif_path_prefix,
             )
+            annotations = (
+                render_github_annotations(
+                    report,
+                    mode=arguments.github_annotations,
+                    path_prefix=_sarif_path_prefix(arguments.path),
+                    maximum=arguments.max_annotations,
+                )
+                if arguments.github_annotations != "none"
+                else ""
+            )
             result = (
                 EXIT_FINDINGS
                 if (
@@ -363,6 +440,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             _write_output(arguments.output, rendered)
         else:
             sys.stdout.write(rendered)
+            sys.stdout.flush()
+        if arguments.command == "scan" and annotations:
+            sys.stdout.write(annotations)
             sys.stdout.flush()
     except BrokenPipeError:
         _silence_broken_stdout()

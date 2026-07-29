@@ -22,7 +22,9 @@ assurance layers should add evidence without weakening that default.
 Implemented in the current alpha: conservative root-cause grouping,
 ruleset-bound baselines, exact expiring owner-attributed suppressions, a strict
 organization-owned policy gate, versioned JSON schemas, and explicit bounded
-coverage inventory. All report evidence is retained.
+coverage inventory. The current unreleased branch also provides bounded,
+evidence-free GitHub annotations and packaged adoption/strict policy templates.
+All report evidence is retained.
 
 ## Isolated dynamic assurance
 

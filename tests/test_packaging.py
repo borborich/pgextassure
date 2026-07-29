@@ -72,6 +72,14 @@ class PackagingContractTests(unittest.TestCase):
             wheel_files,
         )
         self.assertIn(
+            "pgextassure/policies/adoption.json",
+            wheel_files,
+        )
+        self.assertIn(
+            "pgextassure/policies/strict.json",
+            wheel_files,
+        )
+        self.assertIn(
             "schemas/scan-report-1.3.schema.json",
             sdist_paths,
         )

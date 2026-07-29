@@ -6,6 +6,13 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Bounded, escaped GitHub workflow annotations grouped by root cause, with
+  active-only and all-dispositions modes and no matched source evidence.
+- Packaged `adoption` and `strict` organization policy templates, available
+  through the new `policy-template` command.
+
 ## [0.1.0-alpha.3] - 2026-07-29
 
 ### Added

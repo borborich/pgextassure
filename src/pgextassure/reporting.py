@@ -9,7 +9,11 @@ from typing import Any
 from urllib.parse import quote
 
 from .admission import decision_map
-from .grouping import grouped_report_document, root_cause_id_for_finding
+from .grouping import (
+    group_findings,
+    grouped_report_document,
+    root_cause_id_for_finding,
+)
 from .models import Finding, ScanReport, Severity
 from .source import canonical_json_bytes
 
@@ -234,6 +238,107 @@ def render_sarif(report: ScanReport, *, path_prefix: str = "") -> str:
         sort_keys=True,
         indent=2,
     ) + "\n"
+
+
+def _workflow_command_value(value: object, *, property_value: bool) -> str:
+    """Escape untrusted text for a single GitHub workflow command line."""
+
+    escaped = sanitize_terminal_text(value).replace("%", "%25")
+    escaped = escaped.replace("\r", "%0D").replace("\n", "%0A")
+    if property_value:
+        escaped = escaped.replace(":", "%3A").replace(",", "%2C")
+    return escaped
+
+
+def _annotation_path(path: str, path_prefix: str) -> str:
+    return (
+        (PurePosixPath(path_prefix) / PurePosixPath(path)).as_posix()
+        if path_prefix
+        else PurePosixPath(path).as_posix()
+    )
+
+
+def render_github_annotations(
+    report: ScanReport,
+    *,
+    mode: str,
+    path_prefix: str = "",
+    maximum: int = 25,
+) -> str:
+    """Render bounded, evidence-free GitHub workflow annotations."""
+
+    if mode not in {"active", "all"}:
+        raise ValueError("annotation mode must be 'active' or 'all'")
+    if not 2 <= maximum <= 50:
+        raise ValueError("annotation maximum must be between 2 and 50")
+
+    decisions = decision_map(report)
+    commands: list[str] = []
+    if (
+        report.policy is not None
+        and report.policy["result"]["coverage_violation"]
+    ):
+        policy_result = report.policy["result"]
+        commands.append(
+            "::error title=PgExtAssure policy coverage::"
+            + _workflow_command_value(
+                (
+                    f"Policy allows at most "
+                    f"{report.policy['gate']['maximum_skipped_files']} "
+                    f"skipped files, but the scan recorded "
+                    f"{policy_result['skipped_count']}."
+                ),
+                property_value=False,
+            )
+        )
+
+    for group in group_findings(report.findings):
+        decision = decisions.get(group.root_cause_id)
+        status = "active" if decision is None else decision["status"]
+        if mode == "active" and status not in {"active", "expired"}:
+            continue
+        if status in {"baselined", "suppressed"}:
+            command = "notice"
+        elif group.severity in {Severity.CRITICAL, Severity.HIGH}:
+            command = "error"
+        elif group.severity is Severity.MEDIUM:
+            command = "warning"
+        else:
+            command = "notice"
+
+        location = group.locations[0]
+        properties = [
+            "file="
+            + _workflow_command_value(
+                _annotation_path(location.path, path_prefix),
+                property_value=True,
+            ),
+            "title="
+            + _workflow_command_value(
+                f"PgExtAssure {group.rule_id} [{status}]",
+                property_value=True,
+            ),
+        ]
+        if location.line is not None:
+            properties.append(f"line={location.line}")
+        message = (
+            f"{group.title}: {group.message} "
+            f"Remediation: {group.remediation}"
+        )
+        commands.append(
+            f"::{command} {','.join(properties)}::"
+            + _workflow_command_value(message[:2048], property_value=False)
+        )
+
+    if len(commands) > maximum:
+        omitted = len(commands) - (maximum - 1)
+        commands = commands[: maximum - 1]
+        commands.append(
+            "::notice title=PgExtAssure annotations truncated::"
+            f"{omitted} additional root causes were omitted; "
+            "review the complete report artifact."
+        )
+    return "".join(command + "\n" for command in commands)
 
 
 def render_text(report: ScanReport) -> str:

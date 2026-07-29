@@ -118,6 +118,9 @@ expired exception blocks again. See
 For a centrally reviewed gate, supply a strict organization policy:
 
 ```bash
+pgextassure policy-template adoption \
+  --output pgextassure-policy.json
+
 pgextassure scan /path/to/postgres-extension \
   --policy pgextassure-policy.json \
   --format grouped-json \
@@ -218,8 +221,16 @@ Action inputs:
 | `suppressions` | empty | Optional owner-attributed expiring suppressions |
 | `evaluated-on` | current UTC date | Explicit `YYYY-MM-DD` suppression evaluation date |
 | `policy` | empty | Optional organization policy that owns the gate |
+| `annotations` | `none` | `active`, `all`, or `none` root-cause annotations |
+| `max-annotations` | `25` | Maximum annotation lines, from 2 through 50 |
 | `fail-on` | `none` | Minimum blocking severity, or `none` |
 | `python-version` | `3.11` | Python used to run PgExtAssure |
+
+Annotations are grouped by root cause, omit matched source evidence, and are
+bounded by `max-annotations`. `active` includes active and expired decisions;
+`all` also emits accepted baseline and suppression decisions as notices. A
+report output is required because workflow commands use stdout. See
+[GitHub annotations](docs/github-annotations.md).
 
 Pin a released commit SHA in higher-assurance workflows. Uploading SARIF sends
 the generated report to GitHub; review your repository visibility, retention,
@@ -418,6 +429,8 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Threat model](docs/threat-model.md)
 - [Generation plans](docs/generation-plans.md)
 - [Baselines and suppressions](docs/admission-state.md)
+- [Organization policy](docs/organization-policy.md)
+- [GitHub annotations](docs/github-annotations.md)
 - [Roadmap](docs/roadmap.md)
 - [Public corpus pilot](benchmarks/public-corpus/README.md)
 

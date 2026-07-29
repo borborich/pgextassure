@@ -39,6 +39,14 @@ inputs:
     description: Optional strict organization policy that owns the gate
     required: false
     default: ""
+  annotations:
+    description: GitHub annotations (none, active, or all)
+    required: false
+    default: none
+  max-annotations:
+    description: Maximum annotation lines, from 2 through 50
+    required: false
+    default: "25"
   fail-on:
     description: Minimum blocking severity (critical, high, medium, low, or none)
     required: false
@@ -72,11 +80,15 @@ runs:
         PGEXTASSURE_INPUT_SUPPRESSIONS: ${{ inputs.suppressions }}
         PGEXTASSURE_INPUT_EVALUATED_ON: ${{ inputs.evaluated-on }}
         PGEXTASSURE_INPUT_POLICY: ${{ inputs.policy }}
+        PGEXTASSURE_INPUT_ANNOTATIONS: ${{ inputs.annotations }}
+        PGEXTASSURE_INPUT_MAX_ANNOTATIONS: ${{ inputs.max-annotations }}
       run: |
         args=(
           scan
           "--format=$PGEXTASSURE_INPUT_FORMAT"
           "--fail-on=$PGEXTASSURE_INPUT_FAIL_ON"
+          "--github-annotations=$PGEXTASSURE_INPUT_ANNOTATIONS"
+          "--max-annotations=$PGEXTASSURE_INPUT_MAX_ANNOTATIONS"
         )
         if [[ -n "$PGEXTASSURE_INPUT_OUTPUT" ]]; then
           args+=("--output=$PGEXTASSURE_INPUT_OUTPUT")
