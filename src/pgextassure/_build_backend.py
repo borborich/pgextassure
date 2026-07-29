@@ -206,7 +206,7 @@ def _sdist_sources() -> Iterable[tuple[Path, str]]:
         source = PROJECT_ROOT / name
         if source.is_file():
             yield source, name
-    for directory in ("src", "tests", "docs", "schemas"):
+    for directory in ("src", "tests", "docs", "schemas", "examples"):
         root = PROJECT_ROOT / directory
         if not root.exists():
             continue

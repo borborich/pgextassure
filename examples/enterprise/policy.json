@@ -1,0 +1,21 @@
+{
+  "admission": {
+    "allow_baseline": false,
+    "allow_suppressions": false,
+    "require_suppression_ticket": true
+  },
+  "gate": {
+    "blocked_capabilities": [
+      "filesystem.read-write",
+      "memory.unsafe",
+      "network.client-server",
+      "process.background-worker",
+      "process.execute"
+    ],
+    "blocked_rules": [],
+    "maximum_skipped_files": 0,
+    "minimum_severity": "high"
+  },
+  "ruleset_version": "2026-07-28.4",
+  "schema_version": "1.0"
+}

@@ -6,6 +6,17 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Deterministic Evidence Bundle `1.0` creation with canonical report, exact
+  admission-control inputs, and a bounded SPDX 2.3 analyzed-source inventory.
+- Non-extracting offline evidence verification with archive, digest,
+  manifest, coverage, control-input, and SPDX consistency checks.
+- Composite Action evidence mode and a strict enterprise pilot workflow using
+  pinned GitHub/Sigstore custom and SBOM attestations.
+- Tag-only SLSA provenance attestations for future release wheel and sdist
+  artifacts.
+
 ## [0.1.0-alpha.4] - 2026-07-29
 
 ### Added

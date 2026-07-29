@@ -1,0 +1,135 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/evidence-bundle-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "nullableName": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": ["string", "null"]
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "bundle_type": {"const": "pgextassure.evidence"},
+    "created_on": {
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "type": "string"
+    },
+    "files": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "digest": {"$ref": "#/$defs/digest"},
+          "media_type": {"minLength": 1, "type": "string"},
+          "name": {
+            "enum": [
+              "inputs/baseline.json",
+              "inputs/generation-plan.json",
+              "inputs/policy.json",
+              "inputs/suppressions.json",
+              "report.json",
+              "sbom.spdx.json"
+            ]
+          },
+          "size": {"maximum": 33554432, "minimum": 0, "type": "integer"}
+        },
+        "required": ["name", "media_type", "size", "digest"],
+        "type": "object"
+      },
+      "maxItems": 6,
+      "minItems": 2,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "predicate_type": {
+      "const": "https://github.com/borborich/pgextassure/attestation/evidence/v1"
+    },
+    "privacy": {
+      "additionalProperties": false,
+      "properties": {
+        "report_contains_matched_evidence": {"const": true},
+        "source_files_included": {"const": false}
+      },
+      "required": [
+        "source_files_included",
+        "report_contains_matched_evidence"
+      ],
+      "type": "object"
+    },
+    "result": {
+      "additionalProperties": false,
+      "properties": {
+        "fail_on": {
+          "enum": ["none", "low", "medium", "high", "critical"]
+        },
+        "gate": {"enum": ["pass", "blocked"]},
+        "policy_digest": {
+          "anyOf": [
+            {"$ref": "#/$defs/digest"},
+            {"type": "null"}
+          ]
+        }
+      },
+      "required": ["fail_on", "gate", "policy_digest"],
+      "type": "object"
+    },
+    "sbom": {
+      "additionalProperties": false,
+      "properties": {
+        "dependency_resolution": {"const": "not-performed"},
+        "format": {"const": "SPDX-2.3"},
+        "scope": {"const": "analyzed-source-inventory"}
+      },
+      "required": ["format", "scope", "dependency_resolution"],
+      "type": "object"
+    },
+    "schema_version": {"const": "1.0"},
+    "subject": {
+      "additionalProperties": false,
+      "properties": {
+        "component": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {"maxLength": 256, "minLength": 1, "type": "string"},
+            "version": {"$ref": "#/$defs/nullableName"}
+          },
+          "required": ["name", "version"],
+          "type": "object"
+        },
+        "coverage_digest": {"$ref": "#/$defs/digest"},
+        "manifest_digest": {"$ref": "#/$defs/digest"}
+      },
+      "required": ["manifest_digest", "coverage_digest", "component"],
+      "type": "object"
+    },
+    "tool": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {"const": "pgextassure"},
+        "ruleset_version": {"maxLength": 128, "minLength": 1, "type": "string"},
+        "version": {"maxLength": 128, "minLength": 1, "type": "string"}
+      },
+      "required": ["name", "version", "ruleset_version"],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "bundle_type",
+    "predicate_type",
+    "created_on",
+    "subject",
+    "tool",
+    "result",
+    "privacy",
+    "sbom",
+    "files"
+  ],
+  "title": "PgExtAssure Evidence Bundle index 1.0",
+  "type": "object"
+}
