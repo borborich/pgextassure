@@ -17,7 +17,7 @@
       "2026-07-29.6"
     ],
     "allowed_tool_versions": [
-      "0.1.0-alpha.9"
+      "0.1.0-alpha.10"
     ],
     "maximum_evidence_age_days": 30,
     "maximum_signature_age_days": 30,

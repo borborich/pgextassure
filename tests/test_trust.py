@@ -157,7 +157,7 @@ class EnterpriseTrustTests(unittest.TestCase):
             "expires_on": "2026-12-31",
             "requirements": {
                 "allowed_gates": allowed_gates or ["pass"],
-                "allowed_tool_versions": ["0.1.0-alpha.9"],
+                "allowed_tool_versions": ["0.1.0-alpha.10"],
                 "allowed_ruleset_versions": ["2026-07-29.6"],
                 "allowed_evidence_schema_versions": ["1.0"],
                 "allowed_policy_digests": [
@@ -334,7 +334,7 @@ class EnterpriseTrustTests(unittest.TestCase):
 
         self.assertEqual("example/postgresql-production", policy.policy_id)
         self.assertEqual(
-            ("0.1.0-alpha.9",),
+            ("0.1.0-alpha.10",),
             policy.requirements.allowed_tool_versions,
         )
         self.assertEqual(
