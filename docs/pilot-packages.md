@@ -92,3 +92,7 @@ The private key must never be delivered. The expected public-key fingerprint,
 Trust Policy digest, request ID, target, and evaluation date remain external
 authorization inputs. Do not treat values found only inside the ZIP as trust
 anchors.
+
+For a single fail-closed command that performs all of these checks and emits a
+stable CI/ticketing/SIEM record, use
+[`pilot enforce`](enterprise-integrations.md).

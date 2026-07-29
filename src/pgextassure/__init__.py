@@ -32,6 +32,11 @@ from .evidence import (
     create_evidence_bundle,
     verify_evidence_bundle,
 )
+from .enterprise import (
+    AdmissionEnforcement,
+    AdmissionEnforcementError,
+    enforce_pilot_package,
+)
 from .models import Finding, ScanManifest, ScanReport, Severity
 from .pilot import (
     PilotPackage,
@@ -70,6 +75,8 @@ from ._version import PACKAGE_VERSION, RELEASE_VERSION
 
 __all__ = [
     "AdmissionError",
+    "AdmissionEnforcement",
+    "AdmissionEnforcementError",
     "AdmissionReceipt",
     "AdmissionReceiptVerification",
     "Baseline",
@@ -111,6 +118,7 @@ __all__ = [
     "group_findings",
     "grouped_report_document",
     "evaluate_admission",
+    "enforce_pilot_package",
     "load_generation_plan",
     "load_baseline",
     "load_suppressions",

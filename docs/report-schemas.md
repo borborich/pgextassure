@@ -19,7 +19,8 @@ Current contracts:
 - Corporate Evidence Signature statement `1.0`;
 - Enterprise Trust Policy `1.0`;
 - Admission Receipt `1.0`;
-- Enterprise Pilot Package manifest `1.0`.
+- Enterprise Pilot Package manifest `1.0`;
+- Enterprise Admission Event `1.0`.
 
 Agent Review Pack `1.0` is described by
 [`agent-review-pack-1.0.schema.json`](../schemas/agent-review-pack-1.0.schema.json).
@@ -58,6 +59,11 @@ Enterprise Pilot Package manifest `1.0` is described by
 The non-extracting package verifier additionally enforces a closed flat
 payload, canonical manifest bytes, exact entry sizes and digests, release
 distribution checksums, resource limits, and private-key marker rejection.
+
+Enterprise Admission Event `1.0` is described by
+[`admission-event-1.0.schema.json`](../schemas/admission-event-1.0.schema.json).
+It is emitted only after package, signature, receipt, external trust anchors,
+and request context have been recomputed by the one-shot enterprise gate.
 
 ## Coverage inventory
 

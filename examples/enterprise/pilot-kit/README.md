@@ -52,6 +52,8 @@ matched excerpts and must still be handled as security-sensitive artifacts.
     [`acceptance-criteria.md`](acceptance-criteria.md).
 11. Stage the required records and distributions, run `pgextassure pilot
     package`, then verify the resulting ZIP without extracting it.
+12. Run `pgextassure pilot enforce` with separately delivered package, key,
+    policy, and request-context anchors; retain Admission Event 1.0.
 
 The pilot demonstrates a tamper-evident, independently verifiable admission
 record. It does not authorize installation and does not represent a security
@@ -62,3 +64,5 @@ public-key fingerprint and Trust Policy digest through an independent channel;
 values present only inside the package are not trust anchors. The closed
 package format is documented in
 [`docs/pilot-packages.md`](../../../docs/pilot-packages.md).
+CI and enterprise-system integration are documented in
+[`docs/enterprise-integrations.md`](../../../docs/enterprise-integrations.md).

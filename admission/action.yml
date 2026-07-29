@@ -1,0 +1,112 @@
+name: PgExtAssure Enterprise Admission Gate
+description: Recompute and enforce a portable PgExtAssure Pilot Package against external trust anchors
+author: PgExtAssure contributors
+
+branding:
+  icon: lock
+  color: blue
+
+outputs:
+  outcome:
+    description: allow or deny
+    value: ${{ steps.enforce.outputs.outcome }}
+  event-id:
+    description: Deterministic Admission Event identifier
+    value: ${{ steps.enforce.outputs.event-id }}
+  event:
+    description: Canonical Admission Event 1.0 path
+    value: ${{ inputs.event-output }}
+
+inputs:
+  package:
+    description: Portable PgExtAssure Pilot Package ZIP
+    required: true
+  expected-package-sha256:
+    description: Out-of-band trusted SHA-256 of the complete package
+    required: true
+  expected-key-sha256:
+    description: Out-of-band trusted SHA-256 fingerprint of the corporate public key
+    required: true
+  expected-trust-policy-sha256:
+    description: Out-of-band trusted SHA-256 of the enterprise trust policy
+    required: true
+  expected-request-id:
+    description: Trusted change, ticket, or deployment request identifier
+    required: true
+  expected-target:
+    description: Trusted deployment or admission target
+    required: true
+  expected-evaluated-on:
+    description: Trusted receipt evaluation date in YYYY-MM-DD
+    required: true
+  verified-on:
+    description: Optional receipt-use date in YYYY-MM-DD; defaults to current UTC date
+    required: false
+    default: ""
+  event-output:
+    description: Canonical Admission Event 1.0 output path
+    required: false
+    default: pgextassure-admission-event.json
+  python-version:
+    description: Python version used to run PgExtAssure
+    required: false
+    default: "3.11"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install PgExtAssure
+      shell: bash
+      run: python -I -m pip install "$GITHUB_ACTION_PATH/.."
+
+    - name: Enforce enterprise admission
+      id: enforce
+      shell: bash
+      env:
+        PGEXTASSURE_PACKAGE: ${{ inputs.package }}
+        PGEXTASSURE_EXPECTED_PACKAGE_SHA256: ${{ inputs.expected-package-sha256 }}
+        PGEXTASSURE_EXPECTED_KEY_SHA256: ${{ inputs.expected-key-sha256 }}
+        PGEXTASSURE_EXPECTED_TRUST_POLICY_SHA256: ${{ inputs.expected-trust-policy-sha256 }}
+        PGEXTASSURE_EXPECTED_REQUEST_ID: ${{ inputs.expected-request-id }}
+        PGEXTASSURE_EXPECTED_TARGET: ${{ inputs.expected-target }}
+        PGEXTASSURE_EXPECTED_EVALUATED_ON: ${{ inputs.expected-evaluated-on }}
+        PGEXTASSURE_VERIFIED_ON: ${{ inputs.verified-on }}
+        PGEXTASSURE_EVENT_OUTPUT: ${{ inputs.event-output }}
+      run: |
+        set -euo pipefail
+        args=(
+          pilot enforce "$PGEXTASSURE_PACKAGE"
+          "--expected-package-sha256=$PGEXTASSURE_EXPECTED_PACKAGE_SHA256"
+          "--expected-key-sha256=$PGEXTASSURE_EXPECTED_KEY_SHA256"
+          "--expected-trust-policy-sha256=$PGEXTASSURE_EXPECTED_TRUST_POLICY_SHA256"
+          "--expected-request-id=$PGEXTASSURE_EXPECTED_REQUEST_ID"
+          "--expected-target=$PGEXTASSURE_EXPECTED_TARGET"
+          "--expected-evaluated-on=$PGEXTASSURE_EXPECTED_EVALUATED_ON"
+          "--event-output=$PGEXTASSURE_EVENT_OUTPUT"
+          "--format=json"
+        )
+        if [[ -n "$PGEXTASSURE_VERIFIED_ON" ]]; then
+          args+=("--verified-on=$PGEXTASSURE_VERIFIED_ON")
+        fi
+        set +e
+        python -I -m pgextassure "${args[@]}"
+        status="$?"
+        set -e
+        if [[ -f "$PGEXTASSURE_EVENT_OUTPUT" ]]; then
+          python -I - "$PGEXTASSURE_EVENT_OUTPUT" "$GITHUB_OUTPUT" <<'PY'
+        import json
+        from pathlib import Path
+        import sys
+
+        event = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+        with Path(sys.argv[2]).open("a", encoding="utf-8") as output:
+            output.write(f"outcome={event['outcome']}\n")
+            output.write(f"event-id={event['id']}\n")
+        PY
+        fi
+        exit "$status"
