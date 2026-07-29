@@ -6,6 +6,8 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.9] - 2026-07-29
+
 ### Added
 
 - Enterprise Trust Policy `1.0` with exact signer fingerprints,
@@ -142,7 +144,8 @@ and releases use semantic versioning.
 - Gate-preserving broken-pipe handling and stricter `pg_temp` placement for
   recognized safe `SECURITY DEFINER` search paths.
 
-[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.8...HEAD
+[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.9...HEAD
+[0.1.0-alpha.9]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.8...v0.1.0-alpha.9
 [0.1.0-alpha.8]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.7...v0.1.0-alpha.8
 [0.1.0-alpha.7]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.6...v0.1.0-alpha.7
 [0.1.0-alpha.6]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.5...v0.1.0-alpha.6
