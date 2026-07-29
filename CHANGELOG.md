@@ -6,6 +6,8 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.3] - 2026-07-29
+
 ### Added
 
 - Regular report schema `1.3` and grouped report schema `1.2` with a
@@ -20,6 +22,12 @@ and releases use semantic versioning.
   expiry dates; expired exceptions block again.
 - Admission provenance and dispositions in JSON, grouped JSON, SARIF, text,
   and the composite GitHub Action.
+
+### Changed
+
+- **Breaking for JSON consumers:** regular reports now use schema `1.3` and
+  grouped reports use schema `1.2`; consumers should validate against the
+  published versioned JSON Schemas.
 
 ## [0.1.0-alpha.2] - 2026-07-29
 
@@ -62,6 +70,7 @@ and releases use semantic versioning.
 - Gate-preserving broken-pipe handling and stricter `pg_temp` placement for
   recognized safe `SECURITY DEFINER` search paths.
 
-[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.2...HEAD
+[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.3...HEAD
+[0.1.0-alpha.3]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.2...v0.1.0-alpha.3
 [0.1.0-alpha.2]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
 [0.1.0-alpha.1]: https://github.com/borborich/pgextassure/releases/tag/v0.1.0-alpha.1
