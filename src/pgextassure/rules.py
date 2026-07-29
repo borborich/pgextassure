@@ -862,6 +862,100 @@ def _canonical_argument_tokens(arguments: str) -> tuple[str, ...]:
     return tuple(tokens)
 
 
+_MULTIWORD_TYPE_STARTS = {
+    "bit",
+    "character",
+    "double",
+    "interval",
+    "national",
+    "time",
+    "timestamp",
+}
+_ARGUMENT_MODES = {"in", "inout", "out", "variadic"}
+
+
+def _canonical_create_argument_tokens(arguments: str) -> tuple[str, ...]:
+    """Normalize CREATE arguments to PostgreSQL identity-argument syntax."""
+
+    raw_arguments: list[list[_SqlToken]] = [[]]
+    depth = 0
+    for token in _sql_tokens(arguments):
+        if token.kind == "symbol":
+            if token.raw in {"(", "["}:
+                depth += 1
+            elif token.raw in {")", "]"} and depth:
+                depth -= 1
+            elif token.raw == "," and depth == 0:
+                raw_arguments.append([])
+                continue
+        raw_arguments[-1].append(token)
+
+    identity: list[str] = []
+    for argument in raw_arguments:
+        if not argument:
+            continue
+        trimmed: list[_SqlToken] = []
+        nested = 0
+        for token in argument:
+            if token.kind == "symbol":
+                if token.raw in {"(", "["}:
+                    nested += 1
+                elif token.raw in {")", "]"} and nested:
+                    nested -= 1
+                elif token.raw == "=" and nested == 0:
+                    break
+            if (
+                nested == 0
+                and token.kind == "word"
+                and _postgres_identifier_fold(token.raw) == "default"
+            ):
+                break
+            trimmed.append(token)
+        if not trimmed:
+            continue
+
+        first_word = (
+            _postgres_identifier_fold(trimmed[0].raw)
+            if trimmed[0].kind == "word"
+            else None
+        )
+        if first_word in _ARGUMENT_MODES:
+            if first_word == "out":
+                continue
+            trimmed = trimmed[1:]
+            if not trimmed:
+                continue
+            first_word = (
+                _postgres_identifier_fold(trimmed[0].raw)
+                if trimmed[0].kind == "word"
+                else None
+            )
+
+        if (
+            len(trimmed) >= 2
+            and trimmed[0].kind in {"word", "identifier"}
+            and not (
+                trimmed[1].kind == "symbol"
+                and trimmed[1].raw in {".", "[", "%"}
+            )
+            and first_word not in _MULTIWORD_TYPE_STARTS
+        ):
+            trimmed = trimmed[1:]
+
+        if identity:
+            identity.append("s:,")
+        for token in trimmed:
+            if token.kind == "word":
+                identity.append(
+                    "identifier:" + _postgres_identifier_fold(token.raw)
+                )
+            elif token.kind == "identifier":
+                identity.append(_canonical_quoted_identifier(token.raw))
+            else:
+                identity.append(f"{token.kind[0]}:{token.raw}")
+    return tuple(identity)
+
+
 _RoutineKey = tuple[str, str, tuple[str, ...]]
 
 
@@ -870,6 +964,8 @@ def _routine_key(
     name: str,
     statement: str,
     opening: int | None,
+    *,
+    declaration: bool = False,
 ) -> _RoutineKey:
     arguments = (
         _parenthesized_content(statement, opening)
@@ -880,7 +976,11 @@ def _routine_key(
         kind.casefold(),
         _normalized_identifier(name),
         (
-            _canonical_argument_tokens(arguments)
+            (
+                _canonical_create_argument_tokens(arguments)
+                if declaration
+                else _canonical_argument_tokens(arguments)
+            )
             if arguments is not None
             else ("wildcard:any-signature",)
         ),
@@ -1336,6 +1436,7 @@ def scan_sql(path: str, text: str) -> list[Finding]:
                     if routine.group("open") is not None
                     else None
                 ),
+                declaration=create is not None,
             )
             if routine is not None
             else None

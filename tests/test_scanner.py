@@ -993,6 +993,47 @@ class ScannerContractTests(unittest.TestCase):
             1,
         )
 
+    def test_named_default_arguments_match_revoke_identity_types(self) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "named-default-revoke.sql"
+            path.write_text(
+                "CREATE FUNCTION public.safe("
+                "extension_name TEXT, source TEXT DEFAULT 'core'"
+                ") RETURNS void "
+                "LANGUAGE sql SECURITY DEFINER "
+                "SET search_path = pg_catalog, pg_temp AS $$ SELECT 1 $$;\n"
+                "REVOKE ALL ON FUNCTION public.safe(TEXT, TEXT) FROM PUBLIC;\n",
+                encoding="utf-8",
+            )
+
+            report = scan(path)
+
+        self.assertNotIn(
+            "sql.security-definer-public-execute",
+            rule_ids_from(report),
+        )
+
+    def test_multiword_identity_type_is_not_mistaken_for_argument_name(
+        self,
+    ) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "multiword-revoke.sql"
+            path.write_text(
+                "CREATE FUNCTION public.safe(double precision) RETURNS void "
+                "LANGUAGE sql SECURITY DEFINER "
+                "SET search_path = pg_catalog, pg_temp AS $$ SELECT 1 $$;\n"
+                "REVOKE ALL ON FUNCTION public.safe(double precision) "
+                "FROM PUBLIC;\n",
+                encoding="utf-8",
+            )
+
+            report = scan(path)
+
+        self.assertNotIn(
+            "sql.security-definer-public-execute",
+            rule_ids_from(report),
+        )
+
     def test_wrong_signature_revoke_does_not_clear_public_execute(self) -> None:
         with TemporaryDirectory() as directory:
             path = Path(directory) / "wrong-revoke.sql"

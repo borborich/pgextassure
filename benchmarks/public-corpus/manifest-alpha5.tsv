@@ -1,0 +1,17 @@
+repository	url	commit	commit_date	scan_path
+hypopg	https://github.com/HypoPG/hypopg.git	21d5461ad1868434cc47d9aa656d7afc2b24c464	2026-06-20	.
+orafce	https://github.com/orafce/orafce.git	ca0a3d3e4a2f0763c4cf2dbb864fc1786de33eec	2026-07-25	.
+pg_cron	https://github.com/citusdata/pg_cron.git	16618e69cb38f69abd6512b90e8c742010582e0e	2026-07-21	.
+pg_duckdb	https://github.com/duckdb/pg_duckdb.git	ee38d3b540ecea1d93683ba99bdcec5632a21eaf	2026-07-17	.
+pg_hint_plan	https://github.com/ossc-db/pg_hint_plan.git	53889a76b13f92c5adbe34f9fefff97467877016	2026-07-25	.
+pg_net	https://github.com/supabase/pg_net.git	a8299b11182ea5c974f5e89ae83e70e9e44e9e8f	2026-07-09	.
+pg_partman	https://github.com/pgpartman/pg_partman.git	0e22336185b42fbd036e2d72b3f52e25ced07498	2026-07-26	.
+pg_repack	https://github.com/reorg/pg_repack.git	82120316e840773e4521314917a97c26b4b5f520	2026-05-08	lib
+pg_stat_monitor	https://github.com/percona/pg_stat_monitor.git	61c954b6b8acd5de6f7580b27ecc5b40fcc50d48	2026-07-24	.
+pg_tle	https://github.com/aws/pg_tle.git	92f908bc77f0a2a92577f8308c72af2acde13f86	2026-06-22	.
+pgaudit	https://github.com/pgaudit/pgaudit.git	f4563a68c72b434eec9ea1b1230ec241aa7d55ae	2026-07-21	.
+pgmq	https://github.com/pgmq/pgmq.git	fde87d8fb83f0d57fa28aedc2b24e60e064add39	2026-07-24	pgmq-extension
+pgvector	https://github.com/pgvector/pgvector.git	a6420355c5d1c08f4c5fbd5112fc17e4cf3b5eb5	2026-07-10	.
+pgvectorscale	https://github.com/timescale/pgvectorscale.git	57c88b7b4fe40a2afa20b195f60047a983279c19	2026-04-30	pgvectorscale
+timescaledb	https://github.com/timescale/timescaledb.git	77d9d3281ce1265209eb1c39c8a7c04067786213	2026-07-24	.
+wal2json	https://github.com/eulerto/wal2json.git	79d516e60463be3093ff927ba72cf6354bde09af	2026-04-02	.

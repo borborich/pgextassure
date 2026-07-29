@@ -87,6 +87,9 @@ The conservative root-cause grouping follow-up is documented in
 [GROUPING-2026-07-28.md](GROUPING-2026-07-28.md).
 The generated-artifact follow-up is documented in
 [GENERATION-2026-07-28.md](GENERATION-2026-07-28.md).
+The 16-repository corpus expansion and the scanner-quality regression it found
+are documented in
+[EXPANSION-2026-07-29.md](EXPANSION-2026-07-29.md).
 
 ## Publication gate
 
