@@ -164,7 +164,7 @@ class EvidenceBundleTests(unittest.TestCase):
         self.assertEqual("blocked", verification.summary["gate"])
         self.assertEqual(
             "sha256:"
-            "4ccd88117741a76a74a2ccada6244637b824315166919e40aff61b4573bce349",
+            "09f99697abf9722e9f9968cbbc9f831e0e7fa3307167eee83f5351d4c80a84c6",
             verification.summary["policy_digest"],
         )
 

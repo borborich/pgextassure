@@ -28,7 +28,7 @@ keep the policy outside that root.
 ```json
 {
   "schema_version": "1.0",
-  "ruleset_version": "2026-07-28.4",
+  "ruleset_version": "2026-07-29.5",
   "gate": {
     "minimum_severity": "high",
     "blocked_capabilities": [
