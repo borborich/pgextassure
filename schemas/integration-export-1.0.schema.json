@@ -1,0 +1,72 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/integration-export-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "export_type": {"const": "pgextassure.integration-export"},
+    "payload": {
+      "additionalProperties": false,
+      "properties": {
+        "sha256": {"$ref": "#/$defs/digest"},
+        "size": {
+          "maximum": 1048576,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": ["sha256", "size"],
+      "type": "object"
+    },
+    "profile": {
+      "enum": [
+        "jira-cloud-v3",
+        "servicenow-change",
+        "splunk-hec",
+        "elastic-bulk"
+      ]
+    },
+    "request": {
+      "additionalProperties": false,
+      "properties": {
+        "media_type": {
+          "enum": ["application/json", "application/x-ndjson"]
+        },
+        "method": {"const": "POST"},
+        "path": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^/[A-Za-z0-9._/-]+$",
+          "type": "string"
+        }
+      },
+      "required": ["method", "path", "media_type"],
+      "type": "object"
+    },
+    "schema_version": {"const": "1.0"},
+    "source_event": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/digest"},
+        "sha256": {"$ref": "#/$defs/digest"}
+      },
+      "required": ["id", "sha256"],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "export_type",
+    "profile",
+    "request",
+    "payload",
+    "source_event"
+  ],
+  "title": "PgExtAssure Integration Export Manifest 1.0",
+  "type": "object"
+}

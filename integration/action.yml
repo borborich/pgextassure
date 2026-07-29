@@ -1,0 +1,92 @@
+name: PgExtAssure Enterprise Integration Export
+description: Validate Admission Event 1.0 and render a credential-free vendor API payload
+author: PgExtAssure contributors
+
+branding:
+  icon: send
+  color: blue
+
+outputs:
+  payload:
+    description: Vendor API payload path
+    value: ${{ inputs.output }}
+  manifest:
+    description: Integration Export Manifest 1.0 path
+    value: ${{ inputs.manifest-output }}
+
+inputs:
+  event:
+    description: Canonical PgExtAssure Admission Event 1.0 JSON
+    required: true
+  profile:
+    description: jira-cloud-v3, servicenow-change, splunk-hec, or elastic-bulk
+    required: true
+  output:
+    description: Vendor API payload output path
+    required: false
+    default: pgextassure-integration-payload.json
+  manifest-output:
+    description: Integration Export Manifest 1.0 output path
+    required: false
+    default: pgextassure-integration-export.json
+  project:
+    description: Jira project key
+    required: false
+    default: ""
+  issue-type:
+    description: Jira issue type name
+    required: false
+    default: Task
+  table:
+    description: ServiceNow Table API table
+    required: false
+    default: change_request
+  index:
+    description: Splunk or Elastic index
+    required: false
+    default: ""
+  python-version:
+    description: Python version used to run PgExtAssure
+    required: false
+    default: "3.11"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install PgExtAssure
+      shell: bash
+      run: python -I -m pip install "$GITHUB_ACTION_PATH/.."
+
+    - name: Export enterprise integration payload
+      shell: bash
+      env:
+        PGEXTASSURE_EVENT: ${{ inputs.event }}
+        PGEXTASSURE_PROFILE: ${{ inputs.profile }}
+        PGEXTASSURE_OUTPUT: ${{ inputs.output }}
+        PGEXTASSURE_MANIFEST_OUTPUT: ${{ inputs.manifest-output }}
+        PGEXTASSURE_PROJECT: ${{ inputs.project }}
+        PGEXTASSURE_ISSUE_TYPE: ${{ inputs.issue-type }}
+        PGEXTASSURE_TABLE: ${{ inputs.table }}
+        PGEXTASSURE_INDEX: ${{ inputs.index }}
+      run: |
+        set -euo pipefail
+        args=(
+          integration export "$PGEXTASSURE_EVENT"
+          "--profile=$PGEXTASSURE_PROFILE"
+          "--output=$PGEXTASSURE_OUTPUT"
+          "--manifest-output=$PGEXTASSURE_MANIFEST_OUTPUT"
+          "--issue-type=$PGEXTASSURE_ISSUE_TYPE"
+          "--table=$PGEXTASSURE_TABLE"
+        )
+        if [[ -n "$PGEXTASSURE_PROJECT" ]]; then
+          args+=("--project=$PGEXTASSURE_PROJECT")
+        fi
+        if [[ -n "$PGEXTASSURE_INDEX" ]]; then
+          args+=("--index=$PGEXTASSURE_INDEX")
+        fi
+        python -I -m pgextassure "${args[@]}"

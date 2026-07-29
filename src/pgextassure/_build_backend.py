@@ -213,6 +213,7 @@ def _sdist_sources() -> Iterable[tuple[Path, str]]:
         "schemas",
         "examples",
         "admission",
+        "integration",
     ):
         root = PROJECT_ROOT / directory
         if not root.exists():

@@ -30,6 +30,12 @@ from .evidence import (
 )
 from .enterprise import AdmissionEnforcementError, enforce_pilot_package
 from .generation import GenerationPlanError, load_generation_plan
+from .integrations import (
+    INTEGRATION_PROFILES,
+    AdmissionEventError,
+    IntegrationError,
+    project_admission_event,
+)
 from .models import SEVERITY_RANK, ScanReport, Severity
 from .pilot import (
     PilotPackageError,
@@ -497,6 +503,52 @@ def _parser() -> argparse.ArgumentParser:
         default="text",
         dest="output_format",
     )
+    integration = subcommands.add_parser(
+        "integration",
+        help="project a verified Admission Event into a vendor API payload",
+    )
+    integration_commands = integration.add_subparsers(
+        dest="integration_command",
+        required=True,
+    )
+    integration_export = integration_commands.add_parser(
+        "export",
+        help="render a credential-free Jira, ServiceNow, Splunk, or Elastic payload",
+    )
+    integration_export.add_argument("path", metavar="ADMISSION_EVENT")
+    integration_export.add_argument(
+        "--profile",
+        choices=INTEGRATION_PROFILES,
+        required=True,
+    )
+    integration_export.add_argument(
+        "--output",
+        metavar="FILE",
+        help="write the payload instead of stdout",
+    )
+    integration_export.add_argument(
+        "--manifest-output",
+        metavar="FILE",
+        help="write the canonical Integration Export Manifest 1.0",
+    )
+    integration_export.add_argument(
+        "--project",
+        help="Jira project key",
+    )
+    integration_export.add_argument(
+        "--issue-type",
+        default="Task",
+        help="Jira issue type name",
+    )
+    integration_export.add_argument(
+        "--table",
+        default="change_request",
+        help="ServiceNow Table API table",
+    )
+    integration_export.add_argument(
+        "--index",
+        help="Splunk or Elastic destination index",
+    )
     return parser
 
 
@@ -805,6 +857,75 @@ def _silence_broken_stdout() -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     arguments = parser.parse_args(argv)
+
+    if (
+        arguments.command == "integration"
+        and arguments.integration_command == "export"
+    ):
+        try:
+            destinations = [
+                os.path.abspath(value)
+                for value in (
+                    arguments.output,
+                    arguments.manifest_output,
+                )
+                if value
+            ]
+            if os.path.abspath(arguments.path) in destinations:
+                raise IntegrationError(
+                    "integration outputs must not overwrite the Admission Event"
+                )
+            if len(destinations) != len(set(destinations)):
+                raise IntegrationError(
+                    "integration payload and manifest outputs must be distinct"
+                )
+            projection = project_admission_event(
+                arguments.path,
+                profile=arguments.profile,
+                project=arguments.project,
+                issue_type=arguments.issue_type,
+                table=arguments.table,
+                index=arguments.index,
+            )
+            if arguments.output:
+                _write_binary_output(arguments.output, projection.payload)
+                sys.stdout.write(
+                    f"PgExtAssure integration export: {projection.profile}\n"
+                    f"Media type: {projection.media_type}\n"
+                    f"Output: {arguments.output}\n"
+                )
+            else:
+                sys.stdout.write(projection.payload.decode("utf-8"))
+            if arguments.manifest_output:
+                _write_binary_output(
+                    arguments.manifest_output,
+                    projection.manifest,
+                )
+            sys.stdout.flush()
+            return EXIT_OK
+        except AdmissionEventError as error:
+            print(
+                "pgextassure: Admission Event verification failed: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_SCAN_ERROR
+        except IntegrationError as error:
+            print(
+                f"pgextassure: integration: {sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        except BrokenPipeError:
+            _silence_broken_stdout()
+            return EXIT_OK
+        except OSError as error:
+            print(
+                "pgextassure: cannot write output: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
 
     if arguments.command == "pilot" and arguments.pilot_command == "package":
         try:

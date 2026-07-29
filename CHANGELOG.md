@@ -6,6 +6,15 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Credential-free Admission Event projections for Jira Cloud REST API v3,
+  ServiceNow Change Request Table API, Splunk HEC, and Elastic Bulk API.
+- Canonical Integration Export Manifest `1.0` binding vendor payload bytes,
+  HTTP request metadata, and the exact source Admission Event.
+- Strict Admission Event input verification including canonical JSON,
+  duplicate-key rejection, semantic consistency, and event-ID recomputation.
+
 ## [0.1.0-alpha.11] - 2026-07-29
 
 ### Added
