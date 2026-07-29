@@ -87,6 +87,22 @@ integrity depends on the signed Evidence Bundle and external trust context. A
 deployment authority may separately sign or attest it if a portable bearer
 token is required.
 
+## How is the complete pilot handoff protected?
+
+Enterprise Pilot Package 1.0 creates a deterministic flat ZIP with a canonical
+manifest covering the exact byte size and SHA-256 of every artifact. Its
+non-extracting verifier rejects unknown files, unsafe paths, symlinks,
+distribution-checksum mismatches, resource-limit violations, and common
+private-key markers.
+
+## Does package verification prove that no secret exists anywhere?
+
+No. The closed file set and marker checks prevent common staging mistakes, but
+they cannot identify every binary or disguised secret. The private key must be
+generated and retained outside staging. Release provenance, package digest,
+signer fingerprint, Trust Policy digest, and request context must be validated
+through independent channels.
+
 ## What remains outside the static pilot?
 
 Runtime behavior, compiled-artifact/source correspondence, transitive

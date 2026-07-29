@@ -33,6 +33,13 @@ from .evidence import (
     verify_evidence_bundle,
 )
 from .models import Finding, ScanManifest, ScanReport, Severity
+from .pilot import (
+    PilotPackage,
+    PilotPackageError,
+    PilotPackageVerification,
+    create_pilot_package,
+    verify_pilot_package,
+)
 from .scanner import ScanError, scan_path
 from .scope import (
     ScopeExclusion,
@@ -77,6 +84,9 @@ __all__ = [
     "GenerationInput",
     "GenerationPlan",
     "GenerationPlanError",
+    "PilotPackage",
+    "PilotPackageError",
+    "PilotPackageVerification",
     "RootCauseGroup",
     "ScanError",
     "ScanManifest",
@@ -96,6 +106,7 @@ __all__ = [
     "apply_admission",
     "build_spdx_inventory",
     "create_evidence_bundle",
+    "create_pilot_package",
     "create_baseline_document",
     "group_findings",
     "grouped_report_document",
@@ -110,6 +121,7 @@ __all__ = [
     "sign_evidence_bundle",
     "verify_evidence_bundle",
     "verify_evidence_signature",
+    "verify_pilot_package",
     "verify_admission_receipt",
 ]
 

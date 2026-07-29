@@ -229,6 +229,20 @@ tool/ruleset/policy constraints, age limits, and receipt lifetime. A deny
 receipt remains independently verifiable. See
 [Enterprise trust and Admission Receipts](docs/enterprise-trust.md).
 
+Create a deterministic buyer handoff after all evidence, trust, and
+verification records are staged:
+
+```bash
+pgextassure pilot package pilot-staging \
+  --output pgextassure-enterprise-pilot.zip
+
+pgextassure pilot verify-package pgextassure-enterprise-pilot.zip
+```
+
+The package command enforces a closed file set, release checksums, bounded
+content, flat non-symlink inputs, and private-key marker rejection. See
+[Enterprise Pilot Package 1.0](docs/pilot-packages.md).
+
 Exit behavior is controlled by `--fail-on`:
 
 ```text

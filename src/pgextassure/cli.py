@@ -30,6 +30,11 @@ from .evidence import (
 )
 from .generation import GenerationPlanError, load_generation_plan
 from .models import SEVERITY_RANK, ScanReport, Severity
+from .pilot import (
+    PilotPackageError,
+    create_pilot_package,
+    verify_pilot_package,
+)
 from .policy import (
     POLICY_TEMPLATE_PROFILES,
     PolicyError,
@@ -416,6 +421,37 @@ def _parser() -> argparse.ArgumentParser:
         default="text",
         dest="output_format",
     )
+    pilot = subcommands.add_parser(
+        "pilot",
+        help="create or verify a portable enterprise pilot handoff",
+    )
+    pilot_commands = pilot.add_subparsers(
+        dest="pilot_command",
+        required=True,
+    )
+    pilot_package = pilot_commands.add_parser(
+        "package",
+        help="create a deterministic pilot package from a staging directory",
+    )
+    pilot_package.add_argument("path", metavar="DIRECTORY")
+    pilot_package.add_argument("--output", metavar="FILE", required=True)
+    pilot_package.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
+    )
+    pilot_verify = pilot_commands.add_parser(
+        "verify-package",
+        help="verify a pilot package without extracting it",
+    )
+    pilot_verify.add_argument("path", metavar="PACKAGE")
+    pilot_verify.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
+    )
     return parser
 
 
@@ -688,6 +724,22 @@ def _render_trust_summary(summary: dict[str, object]) -> str:
     ) + "\n"
 
 
+def _render_pilot_summary(summary: dict[str, object]) -> str:
+    lines = [
+        f"PgExtAssure enterprise pilot package {summary['schema_version']}: valid",
+        f"Files: {summary['files']}",
+        f"Archive: {summary['archive_sha256']}",
+    ]
+    if "wheel" in summary:
+        lines.extend(
+            (
+                f"Wheel: {summary['wheel']}",
+                f"Source distribution: {summary['source_distribution']}",
+            )
+        )
+    return "\n".join(lines) + "\n"
+
+
 def _silence_broken_stdout() -> None:
     """Prevent Python's shutdown flush from replacing the intended exit code."""
 
@@ -708,6 +760,80 @@ def _silence_broken_stdout() -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     arguments = parser.parse_args(argv)
+
+    if arguments.command == "pilot" and arguments.pilot_command == "package":
+        try:
+            output_path = os.path.abspath(arguments.output)
+            staging_path = os.path.abspath(arguments.path)
+            if os.path.commonpath((output_path, staging_path)) == staging_path:
+                raise PilotPackageError(
+                    "pilot package output must be outside its staging directory"
+                )
+            package = create_pilot_package(arguments.path)
+            _write_binary_output(arguments.output, package.archive)
+            rendered = (
+                json.dumps(
+                    package.summary,
+                    ensure_ascii=False,
+                    allow_nan=False,
+                    sort_keys=True,
+                    indent=2,
+                )
+                + "\n"
+                if arguments.output_format == "json"
+                else _render_pilot_summary(package.summary)
+            )
+            sys.stdout.write(rendered)
+            sys.stdout.flush()
+            return EXIT_OK
+        except PilotPackageError as error:
+            print(
+                f"pgextassure: pilot package: {sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        except BrokenPipeError:
+            _silence_broken_stdout()
+            return EXIT_OK
+        except OSError as error:
+            print(
+                "pgextassure: cannot write output: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+
+    if (
+        arguments.command == "pilot"
+        and arguments.pilot_command == "verify-package"
+    ):
+        try:
+            verification = verify_pilot_package(arguments.path)
+            rendered = (
+                json.dumps(
+                    verification.summary,
+                    ensure_ascii=False,
+                    allow_nan=False,
+                    sort_keys=True,
+                    indent=2,
+                )
+                + "\n"
+                if arguments.output_format == "json"
+                else _render_pilot_summary(verification.summary)
+            )
+            sys.stdout.write(rendered)
+            sys.stdout.flush()
+            return EXIT_OK
+        except PilotPackageError as error:
+            print(
+                f"pgextassure: pilot package verification failed: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_SCAN_ERROR
+        except BrokenPipeError:
+            _silence_broken_stdout()
+            return EXIT_OK
 
     if arguments.command == "review":
         try:

@@ -159,6 +159,7 @@ jobs:
               PIP_NO_INDEX=1 "$environment/bin/python" -m pip install --no-deps "$artifact"
               "$environment/bin/pgextassure" policy-template adoption \
                 --output "$policy_template"
+              "$environment/bin/pgextassure" pilot --help >/dev/null
               "$environment/bin/pgextassure" scan tests/fixtures/safe \
                 --scope-plan tests/fixtures/scope-plan.json \
                 --format json \
