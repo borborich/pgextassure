@@ -30,6 +30,12 @@ from .evidence import (
 )
 from .enterprise import AdmissionEnforcementError, enforce_pilot_package
 from .generation import GenerationPlanError, load_generation_plan
+from .gateway import (
+    GatewayConfig,
+    GatewayError,
+    create_gateway_server,
+    is_loopback_host,
+)
 from .integrations import (
     INTEGRATION_PROFILES,
     AdmissionEventError,
@@ -549,6 +555,42 @@ def _parser() -> argparse.ArgumentParser:
         "--index",
         help="Splunk or Elastic destination index",
     )
+    gateway = subcommands.add_parser(
+        "gateway",
+        help="run the loopback-first enterprise admission HTTP gateway",
+    )
+    gateway_commands = gateway.add_subparsers(
+        dest="gateway_command",
+        required=True,
+    )
+    gateway_serve = gateway_commands.add_parser(
+        "serve",
+        help="serve health, readiness, and admission endpoints",
+    )
+    gateway_serve.add_argument("--host", default="127.0.0.1")
+    gateway_serve.add_argument("--port", type=int, default=8080)
+    gateway_serve.add_argument("--ledger", metavar="FILE", required=True)
+    gateway_serve.add_argument(
+        "--maximum-request-bytes",
+        type=int,
+        default=256 * 1024 * 1024,
+    )
+    gateway_serve.add_argument(
+        "--maximum-concurrent-requests",
+        type=int,
+        default=4,
+    )
+    gateway_serve.add_argument(
+        "--request-timeout-seconds",
+        type=int,
+        default=30,
+    )
+    gateway_serve.add_argument("--openssl", metavar="FILE")
+    gateway_serve.add_argument(
+        "--allow-remote",
+        action="store_true",
+        help="explicitly permit a non-loopback bind; deploy behind mTLS/auth",
+    )
     return parser
 
 
@@ -857,6 +899,56 @@ def _silence_broken_stdout() -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     arguments = parser.parse_args(argv)
+
+    if arguments.command == "gateway" and arguments.gateway_command == "serve":
+        try:
+            if (
+                not is_loopback_host(arguments.host)
+                and not arguments.allow_remote
+            ):
+                raise GatewayError(
+                    "non-loopback bind requires explicit --allow-remote"
+                )
+            server = create_gateway_server(
+                GatewayConfig(
+                    host=arguments.host,
+                    port=arguments.port,
+                    ledger_path=Path(arguments.ledger),
+                    maximum_request_bytes=arguments.maximum_request_bytes,
+                    maximum_concurrent_requests=(
+                        arguments.maximum_concurrent_requests
+                    ),
+                    request_timeout_seconds=(
+                        arguments.request_timeout_seconds
+                    ),
+                    openssl_path=arguments.openssl,
+                )
+            )
+            host, port = server.server_address[:2]
+            sys.stdout.write(
+                f"PgExtAssure admission gateway listening on {host}:{port}\n"
+            )
+            sys.stdout.flush()
+            try:
+                server.serve_forever(poll_interval=0.5)
+            except KeyboardInterrupt:
+                pass
+            finally:
+                server.server_close()
+            return EXIT_OK
+        except GatewayError as error:
+            print(
+                f"pgextassure: gateway: {sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        except OSError as error:
+            print(
+                "pgextassure: gateway startup failed: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
 
     if (
         arguments.command == "integration"

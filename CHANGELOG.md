@@ -14,6 +14,11 @@ and releases use semantic versioning.
   HTTP request metadata, and the exact source Admission Event.
 - Strict Admission Event input verification including canonical JSON,
   duplicate-key rejection, semantic consistency, and event-ID recomputation.
+- Loopback-first Admission Gateway with bounded binary requests, health and
+  readiness endpoints, fail-closed HTTP semantics, and no outbound client.
+- Mode-0600 SQLite replay/idempotency ledger binding unique request context,
+  package digest, exact event bytes, and event SHA-256.
+- Closed Admission Gateway Error schema `1.0`.
 
 ## [0.1.0-alpha.11] - 2026-07-29
 

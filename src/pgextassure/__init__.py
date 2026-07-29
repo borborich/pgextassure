@@ -45,6 +45,13 @@ from .integrations import (
     load_admission_event,
     project_admission_event,
 )
+from .gateway import (
+    AdmissionLedger,
+    GatewayConfig,
+    GatewayConflict,
+    GatewayError,
+    create_gateway_server,
+)
 from .models import Finding, ScanManifest, ScanReport, Severity
 from .pilot import (
     PilotPackage,
@@ -97,10 +104,14 @@ __all__ = [
     "Finding",
     "FindingLocation",
     "GeneratedArtifact",
+    "GatewayConfig",
+    "GatewayConflict",
+    "GatewayError",
     "GenerationInput",
     "GenerationPlan",
     "GenerationPlanError",
     "INTEGRATION_PROFILES",
+    "AdmissionLedger",
     "IntegrationError",
     "IntegrationProjection",
     "PilotPackage",
@@ -125,6 +136,7 @@ __all__ = [
     "apply_admission",
     "build_spdx_inventory",
     "create_evidence_bundle",
+    "create_gateway_server",
     "create_pilot_package",
     "create_baseline_document",
     "group_findings",

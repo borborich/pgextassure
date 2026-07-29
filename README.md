@@ -563,6 +563,7 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Agent Review Pack](docs/agent-review-pack.md)
 - [Enterprise pilot](docs/enterprise-pilot.md)
 - [Enterprise admission integrations](docs/enterprise-integrations.md)
+- [Admission Gateway](docs/admission-gateway.md)
 - [Roadmap](docs/roadmap.md)
 - [Public corpus pilot](benchmarks/public-corpus/README.md)
 

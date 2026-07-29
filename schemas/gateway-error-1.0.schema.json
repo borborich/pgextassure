@@ -1,0 +1,33 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/gateway-error-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "error": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "admission-verification-failed",
+            "capacity-exhausted",
+            "internal-error",
+            "invalid-request",
+            "not-found",
+            "replay-conflict"
+          ]
+        },
+        "message": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": ["code", "message"],
+      "type": "object"
+    },
+    "schema_version": {"const": "1.0"}
+  },
+  "required": ["schema_version", "error"],
+  "title": "PgExtAssure Admission Gateway Error 1.0",
+  "type": "object"
+}
