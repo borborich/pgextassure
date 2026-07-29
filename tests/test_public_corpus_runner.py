@@ -28,7 +28,8 @@ SPEC.loader.exec_module(RUNNER)
 
 COMMIT = "1" * 40
 HEADER = (
-    "repository\turl\tcommit\tcommit_date\tscan_path\tgeneration_plan\n"
+    "repository\turl\tcommit\tcommit_date\tscan_path\tgeneration_plan"
+    "\tscope_plan\n"
 )
 
 
@@ -51,7 +52,7 @@ class PublicCorpusRunnerTests(unittest.TestCase):
                 root,
                 (
                     "sample\thttps://github.com/example/sample.git\t"
-                    f"{COMMIT}\t2026-07-28\t.\t-"
+                    f"{COMMIT}\t2026-07-28\t.\t-\t-"
                 ),
             )
             output = root / "normalized"
@@ -93,7 +94,7 @@ class PublicCorpusRunnerTests(unittest.TestCase):
                 root,
                 (
                     "sample\thttps://github.com/example/sample.git\t"
-                    f"{COMMIT}\t2026-07-28\t.\t-"
+                    f"{COMMIT}\t2026-07-28\t.\t-\t-"
                 ),
             )
             raw = root / "private-raw"
@@ -120,7 +121,7 @@ class PublicCorpusRunnerTests(unittest.TestCase):
                 root,
                 (
                     "sample\thttps://github.com/example/sample.git\t"
-                    f"{COMMIT}\t2026-07-28\t.\t-"
+                    f"{COMMIT}\t2026-07-28\t.\t-\t-"
                 ),
             )
 
@@ -146,7 +147,7 @@ class PublicCorpusRunnerTests(unittest.TestCase):
                 root,
                 (
                     "sample\thttps://github.com/example/sample.git\t"
-                    f"{COMMIT}\t2026-07-28\t../outside\t-"
+                    f"{COMMIT}\t2026-07-28\t../outside\t-\t-"
                 ),
             )
 
@@ -170,6 +171,7 @@ class PublicCorpusRunnerTests(unittest.TestCase):
 
         self.assertEqual(1, len(entries))
         self.assertEqual("-", entries[0].generation_plan)
+        self.assertEqual("-", entries[0].scope_plan)
 
     def test_scan_error_is_normalized_without_path_or_message(self) -> None:
         with TemporaryDirectory() as temporary:
@@ -181,7 +183,7 @@ class PublicCorpusRunnerTests(unittest.TestCase):
                 root,
                 (
                     "sample\thttps://github.com/example/sample.git\t"
-                    f"{COMMIT}\t2026-07-28\t.\t-"
+                    f"{COMMIT}\t2026-07-28\t.\t-\t-"
                 ),
             )
             output = root / "normalized"
@@ -248,7 +250,7 @@ class PublicCorpusRunnerTests(unittest.TestCase):
                 root,
                 (
                     "sample\thttps://github.com/example/sample.git\t"
-                    f"{COMMIT}\t2026-07-28\t.\tplans/sample.json"
+                    f"{COMMIT}\t2026-07-28\t.\tplans/sample.json\t-"
                 ),
             )
             output = root / "normalized"
@@ -272,6 +274,59 @@ class PublicCorpusRunnerTests(unittest.TestCase):
             self.assertNotIn(
                 "update.install-script-missing",
                 record["rule_counts"],
+            )
+
+    def test_pinned_scope_plan_is_applied_and_recorded(self) -> None:
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus_root = root / "corpus"
+            checkout = corpus_root / "sample"
+            checkout.mkdir(parents=True)
+            (checkout / "safe.sql").write_text("SELECT 1;\n", encoding="utf-8")
+            excluded = checkout / "large.sql"
+            excluded.write_text("SELECT 2;\n", encoding="utf-8")
+            digest = hashlib.sha256(excluded.read_bytes()).hexdigest()
+            plans = root / "plans"
+            plans.mkdir()
+            (plans / "scope.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "1.0",
+                        "roots": ["."],
+                        "exclusions": [
+                            {
+                                "path": "large.sql",
+                                "kind": "regular",
+                                "sha256": f"sha256:{digest}",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            manifest = self._manifest(
+                root,
+                (
+                    "sample\thttps://github.com/example/sample.git\t"
+                    f"{COMMIT}\t2026-07-28\t.\t-\tplans/scope.json"
+                ),
+            )
+
+            with patch.object(RUNNER, "_git_head", return_value=COMMIT):
+                result = RUNNER.run_corpus(
+                    corpus_root,
+                    manifest,
+                    root / "normalized",
+                )
+
+            record = json.loads(
+                (root / "normalized" / "summary.json").read_text()
+            )["corpus"][0]
+            self.assertEqual(0, result)
+            self.assertEqual(1, record["scope_exclusions"])
+            self.assertRegex(
+                record["scope_plan_digest"],
+                r"^sha256:[0-9a-f]{64}$",
             )
 
 

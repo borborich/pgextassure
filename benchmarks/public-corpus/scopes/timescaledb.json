@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "roots": ["."],
+  "exclusions": [
+    {
+      "path": "tsl/test/sql/utils",
+      "kind": "symlink",
+      "sha256": "sha256:0ff96056560d5ff15c4f8359c0d608d99ecf571ab0b278099506b9d1abb607bf"
+    }
+  ]
+}

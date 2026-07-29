@@ -154,6 +154,7 @@ class ScanReport:
     coverage: ScanCoverage
     summary: ScanSummary
     findings: tuple[Finding, ...]
+    scope: dict[str, Any] | None = None
     generation: dict[str, Any] | None = None
     admission: dict[str, Any] | None = None
     policy: dict[str, Any] | None = None
@@ -167,6 +168,8 @@ class ScanReport:
             "summary": self.summary.to_dict(),
             "findings": [finding.to_dict() for finding in self.findings],
         }
+        if self.scope is not None:
+            document["scope"] = self.scope
         if self.generation is not None:
             document["generation"] = self.generation
         if self.admission is not None:

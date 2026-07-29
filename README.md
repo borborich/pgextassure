@@ -123,6 +123,21 @@ PgExtAssure verifies every declared input SHA-256 and may apply bounded literal
 template substitutions in memory. It never runs the build. See
 [Generation plans](docs/generation-plans.md) for the schema and trust boundary.
 
+For a monorepository or source tree containing known generated aliases or
+oversized test fixtures, use a reviewed digest-bound scope plan:
+
+```bash
+pgextassure scan /path/to/postgres-extension \
+  --scope-plan /path/to/scope-plan.json \
+  --format grouped-json \
+  --output pgextassure-grouped.json
+```
+
+Scope plans declare non-overlapping relative scan roots. Every excluded regular
+file is pinned to its exact bytes and every excluded symlink to its exact target
+text. Missing, changed, or unused exclusions fail closed. See
+[Scope plans](docs/scope-plans.md).
+
 To introduce a gate into a repository with existing findings, create and review
 a root-cause baseline:
 
@@ -264,6 +279,7 @@ Action inputs:
 | `format` | `sarif` | `text`, `json`, `grouped-json`, `review-json`, or `sarif` |
 | `output` | `pgextassure.sarif` | Report file; set to an empty string for stdout |
 | `generation-plan` | empty | Optional reviewed, pinned generated-artifact declaration |
+| `scope-plan` | empty | Optional reviewed, digest-bound roots and exact exclusions |
 | `baseline` | empty | Optional reviewed root-cause baseline |
 | `suppressions` | empty | Optional owner-attributed expiring suppressions |
 | `evaluated-on` | current UTC date | Explicit `YYYY-MM-DD` suppression evaluation date |
@@ -487,6 +503,7 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Rule reference](docs/rules.md)
 - [Threat model](docs/threat-model.md)
 - [Generation plans](docs/generation-plans.md)
+- [Scope plans](docs/scope-plans.md)
 - [Baselines and suppressions](docs/admission-state.md)
 - [Organization policy](docs/organization-policy.md)
 - [GitHub annotations](docs/github-annotations.md)

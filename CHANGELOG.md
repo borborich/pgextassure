@@ -6,6 +6,18 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Digest-bound Scope Plan `1.0` with non-overlapping relative roots and exact
+  SHA-256-pinned regular-file and symlink exclusions.
+- Scope provenance in regular/grouped reports, Evidence Bundle materials,
+  composite Action inputs, and the reproducible public-corpus runner.
+
+### Changed
+
+- **Breaking for JSON consumers:** regular reports now use schema `1.4` and
+  grouped reports use schema `1.3`.
+
 ## [0.1.0-alpha.6] - 2026-07-29
 
 ### Added

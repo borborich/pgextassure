@@ -30,6 +30,7 @@
       "additionalProperties": false,
       "properties": {
         "generation_plan_digest": {"$ref": "#/$defs/digest"},
+        "scope_plan_digest": {"$ref": "#/$defs/digest"},
         "manifest_digest": {"$ref": "#/$defs/digest"}
       },
       "required": ["manifest_digest"],

@@ -208,7 +208,7 @@ def grouped_report_document(report: ScanReport) -> dict[str, Any]:
                 if key not in {"root_cause_id", "rule_id", "severity"}
             }
     document = {
-        "schema_version": "1.2",
+        "schema_version": "1.3",
         "report_type": "pgextassure.root-cause-groups",
         "tool": dict(report.tool),
         "manifest": report.manifest.to_dict(),
@@ -230,6 +230,9 @@ def grouped_report_document(report: ScanReport) -> dict[str, Any]:
         },
         "root_causes": root_causes,
     }
+    if report.scope is not None:
+        document["scope"] = report.scope
+        document["source_report_schema_version"] = report.schema_version
     if report.generation is not None:
         document["generation"] = report.generation
         document["source_report_schema_version"] = report.schema_version

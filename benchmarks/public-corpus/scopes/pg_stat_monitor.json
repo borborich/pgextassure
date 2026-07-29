@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "roots": ["."],
+  "exclusions": [
+    {
+      "path": "scripts/data_1.sql",
+      "kind": "regular",
+      "sha256": "sha256:9754d25d65f2fef67f770bcda7d4dbf586ffa9200dc67f472df965d7434aa5dc"
+    },
+    {
+      "path": "scripts/data_2.sql",
+      "kind": "regular",
+      "sha256": "sha256:a5657b873f231cfbb98d2346a580b7b7c726166510e43f33e0ec9bb98b73ec98"
+    }
+  ]
+}

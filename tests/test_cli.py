@@ -97,7 +97,7 @@ class CliContractTests(unittest.TestCase):
 
         document = parse_json_stdout(first)
         self.assertIsInstance(document, dict)
-        self.assertEqual("1.3", document.get("schema_version"))
+        self.assertEqual("1.4", document.get("schema_version"))
         self.assertEqual("pgextassure", document.get("tool", {}).get("name"))
         self.assertIsInstance(document.get("findings"), list)
         self.assertRegex(

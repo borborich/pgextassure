@@ -6,11 +6,12 @@ PgExtAssure publishes JSON Schema Draft 2020-12 contracts in
 
 Current contracts:
 
-- regular scan report `1.3`;
-- grouped root-cause report `1.2`;
+- regular scan report `1.4`;
+- grouped root-cause report `1.3`;
 - Agent Review Pack `1.0`;
 - Agent Review Decision Ledger `1.0`;
 - generation plan `1.0`;
+- scope plan `1.0`;
 - baseline `1.0`;
 - suppressions `1.0`;
 - organization policy `1.0`;
@@ -48,10 +49,11 @@ they make the static boundary visible without parsing arbitrary archives,
 binaries, documentation, test data, or build outputs.
 
 Discovery remains bounded by the 100,000-entry tree limit, so the explicit
-inventory cannot grow without limit. Supported symlinks, symlinked
-directories, and supported non-regular sources continue to fail closed rather
-than appearing as harmless skips.
+inventory cannot grow without limit. Supported symlinks, symlinked directories,
+and supported non-regular sources continue to fail closed unless an exact
+reviewed scope exclusion pins the entry. Scope-excluded entries remain visible
+in coverage and their digests are bound through the exact scope-plan material.
 
-Formatting changes to an input policy, baseline, suppression file, or
-generation plan change that input's recorded digest. This deliberately binds
+Formatting changes to an input policy, baseline, suppression file, generation
+plan, or scope plan change that input's recorded digest. This deliberately binds
 an admission result to exact reviewed bytes.

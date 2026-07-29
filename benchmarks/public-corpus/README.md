@@ -42,8 +42,9 @@ Each checkout must be detached at the exact 40-character commit recorded in
 the extension package inside the checkout. The opt-in
 `manifest-generation.tsv` adds a `generation_plan` column; a value other than
 `-` points to a reviewed plan under `plans/`, and every referenced build input
-is pinned by SHA-256. Fetching is deliberately separate from scanning so the
-scan itself has no network behavior.
+is pinned by SHA-256. `manifest-scope.tsv` also adds `scope_plan`; referenced
+plans under `scopes/` pin exact roots and exclusions. Fetching is deliberately
+separate from scanning so the scan itself has no network behavior.
 
 ## Run
 
@@ -59,6 +60,13 @@ To reproduce the generated-artifact follow-up:
 ```bash
 python tools/run_public_corpus.py /path/to/corpus \
   --manifest benchmarks/public-corpus/manifest-generation.tsv
+```
+
+To reproduce the 16-repository digest-bound scope follow-up:
+
+```bash
+python tools/run_public_corpus.py /path/to/corpus \
+  --manifest benchmarks/public-corpus/manifest-scope.tsv
 ```
 
 The default normalized output is:
@@ -90,6 +98,8 @@ The generated-artifact follow-up is documented in
 The 16-repository corpus expansion and the scanner-quality regression it found
 are documented in
 [EXPANSION-2026-07-29.md](EXPANSION-2026-07-29.md).
+The digest-bound scope follow-up that completes all 16 pinned scans is
+documented in [SCOPE-2026-07-29.md](SCOPE-2026-07-29.md).
 
 ## Publication gate
 

@@ -174,6 +174,14 @@ def to_sarif(report: ScanReport, *, path_prefix: str = "") -> dict[str, Any]:
         "coverageDigest": report.coverage.digest,
         "skippedFiles": len(report.coverage.skipped_files),
     }
+    if report.scope is not None:
+        run_properties.update(
+            {
+                "scopePlanDigest": report.scope["plan"]["digest"],
+                "scopeRoots": report.scope["roots"],
+                "scopeExclusions": len(report.scope["exclusions"]),
+            }
+        )
     if report.generation is not None:
         plan = report.generation["plan"]
         run_properties.update(
@@ -357,6 +365,15 @@ def render_text(report: ScanReport) -> str:
             f"medium {counts['medium']}, low {counts['low']})"
         ),
     ]
+    if report.scope is not None:
+        lines.insert(
+            2,
+            (
+                f"Scope plan: {report.scope['plan']['digest']} | "
+                f"Roots: {len(report.scope['roots'])} | "
+                f"Exclusions: {len(report.scope['exclusions'])}"
+            ),
+        )
     if report.generation is not None:
         lines.insert(
             2,
