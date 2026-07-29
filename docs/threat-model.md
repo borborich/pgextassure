@@ -106,6 +106,17 @@ signed bearer tokens. PgExtAssure verifies their complete correlation but does
 not maintain shared state, enforce one-time request consumption, or know
 whether an otherwise-valid receipt was replayed in another system.
 
+Enterprise Pilot Package verification is an outer transport-integrity layer.
+It verifies a closed flat payload, exact byte digests, release-distribution
+checksums, resource limits, and common textual private-key markers without
+extracting the ZIP. It does not make values inside the package trusted,
+authenticate `release-SHA256SUMS` against GitHub, detect every possible binary
+or steganographic secret encoding, or replace artifact-provenance
+verification. The staging operator remains responsible for keeping all
+private-key material outside the staging directory. Receiving systems must
+obtain the package digest, release provenance, signer fingerprint, Trust
+Policy digest, and request context through appropriate independent channels.
+
 ## Threats the static MVP can surface
 
 Subject to the implemented rules and parser coverage, reports may surface:

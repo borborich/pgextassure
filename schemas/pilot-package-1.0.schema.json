@@ -1,0 +1,45 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/pilot-package-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "path": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "files": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {"$ref": "#/$defs/path"},
+          "sha256": {"$ref": "#/$defs/digest"},
+          "size": {
+            "maximum": 67108864,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": ["path", "sha256", "size"],
+        "type": "object"
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "type": "array"
+    },
+    "package_type": {
+      "const": "pgextassure.enterprise-pilot-package"
+    },
+    "schema_version": {"const": "1.0"}
+  },
+  "required": ["schema_version", "package_type", "files"],
+  "title": "PgExtAssure Enterprise Pilot Package Manifest 1.0",
+  "type": "object"
+}

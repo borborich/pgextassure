@@ -6,6 +6,12 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Enterprise Pilot Package `1.0` with a deterministic flat ZIP, canonical
+  payload manifest, exact release-distribution checksum validation,
+  non-extracting offline verification, and private-key marker rejection.
+
 ## [0.1.0-alpha.9] - 2026-07-29
 
 ### Added

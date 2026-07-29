@@ -24,6 +24,8 @@ reason.
 | AC-16 | Policy binding | A non-allowlisted evidence policy digest is denied |
 | AC-17 | Request context | Modified request ID, target, or evaluation date fails verification |
 | AC-18 | Receipt lifetime | Expired receipts remain verifiable but are not active |
+| AC-19 | Handoff integrity | Outer pilot package and every manifest-bound payload verify before extraction |
+| AC-20 | Release provenance | Included distributions match release checksums and independently trusted provenance |
 
 Suggested retained record:
 
@@ -40,6 +42,8 @@ Verification date:
 Verifier:
 Gate:
 Admission Receipt decision and valid-until:
+Pilot package SHA-256:
+Distribution provenance verification:
 Criteria passed:
 Exceptions, owner, expiry:
 Final pilot disposition:

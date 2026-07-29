@@ -23,6 +23,13 @@ The supplier sends exactly these artifacts:
 | trusted key fingerprint | Delivered through an independent trust channel |
 | `enterprise-trust-policy.json` | Organization-owned signer and evidence trust anchor |
 | `pgextassure-admission-receipt.json` | Recomputable admit or deny decision |
+| `evidence-verify.json` | Retained Evidence Bundle verification result |
+| `signature-verify.json` | Retained corporate-signature verification result |
+| `receipt-verify.json` | Retained active/inactive receipt verification result |
+| PgExtAssure wheel and sdist | Exact offline verifier distributions |
+| `release-SHA256SUMS` | Release checksums for both distributions |
+| `release-provenance.json` | Retained strict GitHub/Sigstore verification result |
+| `pilot-package.json` | Generated manifest inside the final handoff ZIP |
 
 Source files are not embedded in the evidence ZIP. Reports can contain short
 matched excerpts and must still be handled as security-sensitive artifacts.
@@ -42,8 +49,16 @@ matched excerpts and must still be handled as security-sensitive artifacts.
 9. Recompute the receipt using independently expected request context and
    trust-policy digest.
 10. Record the result against
-   [`acceptance-criteria.md`](acceptance-criteria.md).
+    [`acceptance-criteria.md`](acceptance-criteria.md).
+11. Stage the required records and distributions, run `pgextassure pilot
+    package`, then verify the resulting ZIP without extracting it.
 
 The pilot demonstrates a tamper-evident, independently verifiable admission
 record. It does not authorize installation and does not represent a security
 certificate.
+
+The private key must stay outside the staging directory. Deliver the expected
+public-key fingerprint and Trust Policy digest through an independent channel;
+values present only inside the package are not trust anchors. The closed
+package format is documented in
+[`docs/pilot-packages.md`](../../../docs/pilot-packages.md).

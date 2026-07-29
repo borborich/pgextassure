@@ -50,3 +50,9 @@ Receipt workflow. This layer demonstrates key rotation/revocation, exact
 tool/ruleset/policy constraints, evidence freshness, request-context binding,
 and the difference between a cryptographically valid artifact and an active
 organization admission decision.
+
+Enterprise Pilot Package 1.0 closes the handoff layer around those artifacts.
+It creates a deterministic, manifest-bound, non-extracting-verifiable ZIP with
+the exact release distributions and retained verification results while
+rejecting unrecognized payloads and common private-key formats. See
+[Enterprise Pilot Package 1.0](pilot-packages.md).

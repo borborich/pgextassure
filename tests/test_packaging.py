@@ -84,6 +84,10 @@ class PackagingContractTests(unittest.TestCase):
             wheel_files,
         )
         self.assertIn(
+            "pgextassure/schemas/pilot-package-1.0.schema.json",
+            wheel_files,
+        )
+        self.assertIn(
             "pgextassure/policies/adoption.json",
             wheel_files,
         )

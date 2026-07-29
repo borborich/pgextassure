@@ -24,7 +24,7 @@ class PublishedSchemaTests(unittest.TestCase):
     def test_all_schema_files_are_unique_draft_2020_12_documents(self) -> None:
         identifiers: set[str] = set()
         schemas = sorted(SCHEMA_ROOT.glob("*.schema.json"))
-        self.assertEqual(15, len(schemas))
+        self.assertEqual(16, len(schemas))
         for path in schemas:
             with self.subTest(path=path.name):
                 document = json.loads(path.read_text(encoding="utf-8"))

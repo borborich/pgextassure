@@ -18,7 +18,8 @@ Current contracts:
 - Evidence Bundle index `1.0`;
 - Corporate Evidence Signature statement `1.0`;
 - Enterprise Trust Policy `1.0`;
-- Admission Receipt `1.0`.
+- Admission Receipt `1.0`;
+- Enterprise Pilot Package manifest `1.0`.
 
 Agent Review Pack `1.0` is described by
 [`agent-review-pack-1.0.schema.json`](../schemas/agent-review-pack-1.0.schema.json).
@@ -51,6 +52,12 @@ Admission Receipt `1.0` is described by
 The receipt verifier additionally recomputes the complete document from the
 signed Evidence Bundle, exact trust policy, and externally expected request
 context.
+
+Enterprise Pilot Package manifest `1.0` is described by
+[`pilot-package-1.0.schema.json`](../schemas/pilot-package-1.0.schema.json).
+The non-extracting package verifier additionally enforces a closed flat
+payload, canonical manifest bytes, exact entry sizes and digests, release
+distribution checksums, resource limits, and private-key marker rejection.
 
 ## Coverage inventory
 

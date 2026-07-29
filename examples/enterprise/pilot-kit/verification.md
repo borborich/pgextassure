@@ -66,3 +66,23 @@ python -m pgextassure trust verify-receipt \
 
 The ticket or deployment system must enforce request-ID uniqueness. PgExtAssure
 binds and verifies the context but does not maintain a shared replay database.
+
+After retaining `evidence-verify.json`, `signature-verify.json`, and
+`receipt-verify.json`, add the exact release wheel, source distribution,
+`release-SHA256SUMS`, retained `release-provenance.json`, and Pilot Kit
+Markdown files to a flat staging directory. Keep the private key outside it.
+
+```bash
+python -m pgextassure pilot package pilot-staging \
+  --output pgextassure-enterprise-pilot.zip \
+  --format json
+
+python -m pgextassure pilot verify-package \
+  pgextassure-enterprise-pilot.zip \
+  --format json
+```
+
+Only after the outer package verifies should the recipient continue with the
+evidence, signature, and receipt commands above. The expected signer
+fingerprint, Trust Policy digest, request ID, target, and evaluation date must
+come from independent receiving-system context.
