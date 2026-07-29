@@ -6,6 +6,8 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.7] - 2026-07-29
+
 ### Added
 
 - Digest-bound Scope Plan `1.0` with non-overlapping relative roots and exact
@@ -120,7 +122,8 @@ and releases use semantic versioning.
 - Gate-preserving broken-pipe handling and stricter `pg_temp` placement for
   recognized safe `SECURITY DEFINER` search paths.
 
-[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.6...HEAD
+[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.7...HEAD
+[0.1.0-alpha.7]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.6...v0.1.0-alpha.7
 [0.1.0-alpha.6]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.5...v0.1.0-alpha.6
 [0.1.0-alpha.5]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.4...v0.1.0-alpha.5
 [0.1.0-alpha.4]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.3...v0.1.0-alpha.4

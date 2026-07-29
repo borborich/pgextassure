@@ -13,6 +13,6 @@
     "maximum_skipped_files": null,
     "minimum_severity": "critical"
   },
-  "ruleset_version": "2026-07-29.5",
+  "ruleset_version": "2026-07-29.6",
   "schema_version": "1.0"
 }

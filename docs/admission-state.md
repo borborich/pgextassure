@@ -44,7 +44,7 @@ Suppressions are authored as a separate reviewed JSON file:
 ```json
 {
   "schema_version": "1.0",
-  "ruleset_version": "2026-07-29.5",
+  "ruleset_version": "2026-07-29.6",
   "suppressions": [
     {
       "root_cause_id": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
