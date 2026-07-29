@@ -1,0 +1,29 @@
+services:
+  admission-gateway:
+    build:
+      context: ..
+    image: pgextassure-gateway:local
+    restart: unless-stopped
+    read_only: true
+    user: "65532:65532"
+    init: true
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      PGEXTASSURE_MAXIMUM_REQUEST_BYTES: "268435456"
+      PGEXTASSURE_MAXIMUM_CONCURRENT_REQUESTS: "4"
+      PGEXTASSURE_REQUEST_TIMEOUT_SECONDS: "30"
+    volumes:
+      - pgextassure-state:/var/lib/pgextassure
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=300m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+
+volumes:
+  pgextassure-state:

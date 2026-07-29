@@ -34,6 +34,8 @@ class PackagingContractTests(unittest.TestCase):
 
         self.assertTrue(relative_paths)
         for relative in relative_paths:
+            if relative == PurePosixPath(".dockerignore"):
+                continue
             self.assertFalse(
                 any(part.startswith(".") for part in relative.parts),
                 f"hidden path leaked into the source distribution: {relative}",
@@ -129,6 +131,12 @@ class PackagingContractTests(unittest.TestCase):
         )
         self.assertIn("admission/action.yml", sdist_paths)
         self.assertIn("integration/action.yml", sdist_paths)
+        self.assertIn("Dockerfile", sdist_paths)
+        self.assertIn(".dockerignore", sdist_paths)
+        self.assertIn("docker/gateway-entrypoint.sh", sdist_paths)
+        self.assertIn("deploy/compose.yaml", sdist_paths)
+        self.assertIn("deploy/kubernetes.yaml", sdist_paths)
+        self.assertIn("docs/gateway-deployment.md", sdist_paths)
         self.assertIn(
             "examples/enterprise/admission-gate.yml",
             sdist_paths,
