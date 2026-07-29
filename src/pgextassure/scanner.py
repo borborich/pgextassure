@@ -17,8 +17,10 @@ from .graph import scan_update_graph
 from .models import (
     Finding,
     ManifestFile,
+    ScanCoverage,
     ScanManifest,
     ScanReport,
+    SkippedFile,
     build_summary,
 )
 from .rules import (
@@ -163,7 +165,7 @@ def _is_extension_sql(
     return False
 
 
-def _discover(path: Path) -> tuple[Path, list[Path]]:
+def _discover(path: Path) -> tuple[Path, list[Path], list[SkippedFile]]:
     try:
         metadata = path.lstat()
     except FileNotFoundError:
@@ -176,7 +178,7 @@ def _discover(path: Path) -> tuple[Path, list[Path]]:
         if not is_supported(path):
             raise ScanInputError(f"unsupported input file: {path}")
         _validate_relative_path(path.name)
-        return path.parent, [path]
+        return path.parent, [path], []
     if not stat.S_ISDIR(metadata.st_mode):
         raise ScanInputError(f"scan path is neither a file nor directory: {path}")
 
@@ -185,6 +187,7 @@ def _discover(path: Path) -> tuple[Path, list[Path]]:
         raise ScanError(f"cannot traverse {location}: {error}") from error
 
     discovered: list[Path] = []
+    skipped: list[SkippedFile] = []
     entries_seen = 0
     directories_seen = 1
     for directory, dirnames, filenames in os.walk(
@@ -224,12 +227,37 @@ def _discover(path: Path) -> tuple[Path, list[Path]]:
             candidate = Path(directory) / name
             relative = _relative(path, candidate)
             _validate_relative_path(relative)
-            if not is_supported(candidate):
-                continue
             try:
                 candidate_metadata = candidate.lstat()
             except OSError as error:
                 raise ScanError(f"cannot inspect {candidate}: {error}") from error
+            if not is_supported(candidate):
+                if stat.S_ISREG(candidate_metadata.st_mode):
+                    skipped.append(
+                        SkippedFile(
+                            path=relative,
+                            kind="regular",
+                            reason="unsupported_file_type",
+                            size=candidate_metadata.st_size,
+                        )
+                    )
+                elif stat.S_ISLNK(candidate_metadata.st_mode):
+                    skipped.append(
+                        SkippedFile(
+                            path=relative,
+                            kind="symlink",
+                            reason="unsupported_symlink",
+                        )
+                    )
+                else:
+                    skipped.append(
+                        SkippedFile(
+                            path=relative,
+                            kind="other",
+                            reason="unsupported_filesystem_object",
+                        )
+                    )
+                continue
             if stat.S_ISLNK(candidate_metadata.st_mode):
                 raise ScanInputError(
                     f"refusing symlinked supported source file: {relative}"
@@ -245,7 +273,7 @@ def _discover(path: Path) -> tuple[Path, list[Path]]:
                 )
     if not discovered:
         raise ScanInputError(f"no supported source files found under: {path}")
-    return path, discovered
+    return path, discovered, skipped
 
 
 def _relative(root: Path, candidate: Path) -> str:
@@ -341,7 +369,7 @@ def scan_path(
     """Statically scan ``path`` without importing, compiling, or executing it."""
 
     requested = Path(path)
-    root, files = _discover(requested)
+    root, files, skipped_files = _discover(requested)
     manifest_files: list[ManifestFile] = []
     contents: dict[str, str] = {}
     total_bytes = 0
@@ -372,6 +400,17 @@ def scan_path(
         algorithm="sha256",
         digest="sha256:" + sha256_hex(canonical_json_bytes(manifest_payload)),
         files=tuple(manifest_files),
+    )
+    ordered_skipped = tuple(sorted(skipped_files, key=lambda item: item.path))
+    coverage_payload = {
+        "analyzed_files": len(manifest_files),
+        "skipped_files": [item.to_dict() for item in ordered_skipped],
+    }
+    coverage = ScanCoverage(
+        algorithm="sha256",
+        digest="sha256:" + sha256_hex(canonical_json_bytes(coverage_payload)),
+        analyzed_files=len(manifest_files),
+        skipped_files=ordered_skipped,
     )
 
     generation = None
@@ -479,13 +518,14 @@ def scan_path(
     )
     ordered = _deduplicate(findings)
     return ScanReport(
-        schema_version="1.1" if generation is not None else "1.0",
+        schema_version="1.3",
         tool={
             "name": "pgextassure",
             "version": TOOL_VERSION,
             "ruleset_version": RULESET_VERSION,
         },
         manifest=manifest,
+        coverage=coverage,
         summary=build_summary(len(manifest_files), ordered),
         findings=ordered,
         generation=generation,

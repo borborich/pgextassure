@@ -150,6 +150,7 @@ jobs:
               grouped_report="$RUNNER_TEMP/smoke-$version-$kind-grouped.json"
               generated_report="$RUNNER_TEMP/smoke-$version-$kind-generated.json"
               admission_report="$RUNNER_TEMP/smoke-$version-$kind-admission.json"
+              policy_report="$RUNNER_TEMP/smoke-$version-$kind-policy.json"
               "$interpreter" -m venv "$environment"
               PIP_NO_INDEX=1 "$environment/bin/python" -m pip install --no-deps "$artifact"
               "$environment/bin/pgextassure" scan tests/fixtures/safe \
@@ -170,12 +171,16 @@ jobs:
                 --format grouped-json \
                 --output "$admission_report" \
                 --fail-on critical
+              "$environment/bin/pgextassure" scan tests/fixtures/safe \
+                --policy tests/fixtures/policy.json \
+                --format json \
+                --output "$policy_report"
               "$environment/bin/python" -m pgextassure scan tests/fixtures/safe \
                 --format text \
                 --fail-on high >/dev/null
               "$environment/bin/python" -c \
-                'import json, pathlib, sys; regular = json.loads(pathlib.Path(sys.argv[1]).read_text()); grouped = json.loads(pathlib.Path(sys.argv[2]).read_text()); generated = json.loads(pathlib.Path(sys.argv[3]).read_text()); admission = json.loads(pathlib.Path(sys.argv[4]).read_text()); assert regular["schema_version"] == "1.0"; assert grouped["report_type"] == "pgextassure.root-cause-groups"; assert grouped["summary"]["root_causes"] > 0; assert generated["schema_version"] == "1.1"; assert len(generated["generation"]["artifacts"]) == 1; assert admission["schema_version"] == "1.1"; assert admission["admission"]["summary"]["baselined"] == 1' \
-                "$report" "$grouped_report" "$generated_report" "$admission_report"
+                'import json, pathlib, sys; regular = json.loads(pathlib.Path(sys.argv[1]).read_text()); grouped = json.loads(pathlib.Path(sys.argv[2]).read_text()); generated = json.loads(pathlib.Path(sys.argv[3]).read_text()); admission = json.loads(pathlib.Path(sys.argv[4]).read_text()); policy = json.loads(pathlib.Path(sys.argv[5]).read_text()); assert regular["schema_version"] == "1.3"; assert regular["coverage"]["skipped_count"] >= 0; assert grouped["report_type"] == "pgextassure.root-cause-groups"; assert grouped["summary"]["root_causes"] > 0; assert generated["schema_version"] == "1.3"; assert len(generated["generation"]["artifacts"]) == 1; assert admission["schema_version"] == "1.2"; assert admission["admission"]["summary"]["baselined"] == 1; assert policy["policy"]["result"]["blocked_count"] == 0' \
+                "$report" "$grouped_report" "$generated_report" "$admission_report" "$policy_report"
             done
           done
 
@@ -249,6 +254,15 @@ jobs:
           output: ${{ runner.temp }}/pgextassure-e2e/safe.json
           fail-on: none
           python-version: "3.14"
+
+      - name: Scan safe fixture with organization policy
+        uses: ./
+        with:
+          path: tests/fixtures/safe
+          policy: tests/fixtures/policy.json
+          format: json
+          output: ${{ runner.temp }}/pgextassure-e2e/policy.json
+          python-version: "3.11"
 
       - name: Scan vulnerable fixture to grouped JSON
         uses: ./
@@ -324,6 +338,7 @@ jobs:
           VULNERABLE_GATE_OUTCOME: ${{ steps.vulnerable-gate.outcome }}
           SAFE_SARIF: ${{ runner.temp }}/pgextassure-e2e/safe.sarif
           SAFE_JSON: ${{ runner.temp }}/pgextassure-e2e/safe.json
+          POLICY_JSON: ${{ runner.temp }}/pgextassure-e2e/policy.json
           GROUPED_JSON: ${{ runner.temp }}/pgextassure-e2e/grouped.json
           GENERATED_JSON: ${{ runner.temp }}/pgextassure-e2e/generated.json
           BASELINE_JSON: ${{ runner.temp }}/pgextassure-e2e/baseline.json
@@ -345,6 +360,9 @@ jobs:
 
           sarif = json.loads(Path(os.environ["SAFE_SARIF"]).read_text(encoding="utf-8"))
           safe = json.loads(Path(os.environ["SAFE_JSON"]).read_text(encoding="utf-8"))
+          policy = json.loads(
+              Path(os.environ["POLICY_JSON"]).read_text(encoding="utf-8")
+          )
           grouped = json.loads(
               Path(os.environ["GROUPED_JSON"]).read_text(encoding="utf-8")
           )
@@ -365,13 +383,15 @@ jobs:
           )
 
           assert sarif["version"] == "2.1.0"
-          assert safe["schema_version"] == "1.0"
+          assert safe["schema_version"] == "1.3"
+          assert safe["coverage"]["skipped_count"] >= 0
+          assert policy["policy"]["result"]["blocked_count"] == 0
           assert grouped["report_type"] == "pgextassure.root-cause-groups"
           assert grouped["summary"]["root_causes"] > 0
-          assert generated["schema_version"] == "1.1"
+          assert generated["schema_version"] == "1.3"
           assert len(generated["generation"]["artifacts"]) == 1
           assert generated["summary"]["findings"] == 0
-          assert baseline["schema_version"] == "1.1"
+          assert baseline["schema_version"] == "1.2"
           assert baseline["admission"]["summary"]["baselined"] == 1
           assert baseline["root_causes"][0]["admission"]["status"] == "baselined"
           suppressed_result = suppressed["runs"][0]["results"][0]

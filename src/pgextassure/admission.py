@@ -607,7 +607,6 @@ def apply_admission(
         }
     return replace(
         report,
-        schema_version="1.2",
         admission=admission,
     )
 

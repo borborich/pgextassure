@@ -1,0 +1,58 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/policy-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "admission": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_baseline": {"type": "boolean"},
+        "allow_suppressions": {"type": "boolean"},
+        "require_suppression_ticket": {"type": "boolean"}
+      },
+      "required": [
+        "allow_baseline",
+        "allow_suppressions",
+        "require_suppression_ticket"
+      ],
+      "type": "object"
+    },
+    "gate": {
+      "additionalProperties": false,
+      "properties": {
+        "blocked_capabilities": {
+          "items": {"pattern": "^[a-z][a-z0-9._-]{0,127}$", "type": "string"},
+          "maxItems": 256,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "blocked_rules": {
+          "items": {"pattern": "^[a-z][a-z0-9.-]{0,127}$", "type": "string"},
+          "maxItems": 256,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "minimum_severity": {
+          "enum": ["critical", "high", "medium", "low", "none"]
+        },
+        "maximum_skipped_files": {
+          "maximum": 100000,
+          "minimum": 0,
+          "type": ["integer", "null"]
+        }
+      },
+      "required": [
+        "minimum_severity",
+        "blocked_capabilities",
+        "blocked_rules",
+        "maximum_skipped_files"
+      ],
+      "type": "object"
+    },
+    "ruleset_version": {"maxLength": 128, "minLength": 1, "type": "string"},
+    "schema_version": {"const": "1.0"}
+  },
+  "required": ["schema_version", "ruleset_version", "gate", "admission"],
+  "title": "PgExtAssure organization policy 1.0",
+  "type": "object"
+}

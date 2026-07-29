@@ -89,7 +89,7 @@ class AdmissionStateTests(unittest.TestCase):
         self.assertEqual(0, created.returncode, created.stderr)
         self.assertEqual(0, scanned.returncode, scanned.stderr)
         document = parse_json_stdout(scanned)
-        self.assertEqual("1.2", document["schema_version"])
+        self.assertEqual("1.3", document["schema_version"])
         self.assertTrue(document["findings"])
         self.assertEqual(
             len(document["findings"]),
@@ -236,7 +236,7 @@ class AdmissionStateTests(unittest.TestCase):
         grouped = grouped_report_document(report)
         sarif = to_sarif(report)
         text = render_text(report)
-        self.assertEqual("1.1", grouped["schema_version"])
+        self.assertEqual("1.2", grouped["schema_version"])
         self.assertEqual(
             "suppressed",
             grouped["root_causes"][0]["admission"]["status"],

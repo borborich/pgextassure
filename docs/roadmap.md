@@ -13,15 +13,16 @@ assurance layers should add evidence without weakening that default.
 
 ## Next: precision and review workflow
 
-- documented stable rule identifiers and report schema;
+- documented versioned report and input schemas;
 - bounded parsing and explicit skipped-file inventory;
 - source/release digests and reproducible report metadata;
 - remediation tests built from accepted upstream fixes;
-- optional GitHub annotations and admission-policy templates.
+- optional GitHub annotations and additional policy templates.
 
-Implemented in the current alpha: conservative root-cause grouping plus
-ruleset-bound baselines and exact, expiring, owner-attributed suppressions that
-retain all report evidence.
+Implemented in the current alpha: conservative root-cause grouping,
+ruleset-bound baselines, exact expiring owner-attributed suppressions, a strict
+organization-owned policy gate, versioned JSON schemas, and explicit bounded
+coverage inventory. All report evidence is retained.
 
 ## Isolated dynamic assurance
 

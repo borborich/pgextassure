@@ -97,7 +97,7 @@ class CliContractTests(unittest.TestCase):
 
         document = parse_json_stdout(first)
         self.assertIsInstance(document, dict)
-        self.assertEqual("1.0", document.get("schema_version"))
+        self.assertEqual("1.3", document.get("schema_version"))
         self.assertEqual("pgextassure", document.get("tool", {}).get("name"))
         self.assertIsInstance(document.get("findings"), list)
         self.assertRegex(
@@ -111,6 +111,10 @@ class CliContractTests(unittest.TestCase):
         self.assertEqual(
             {"critical", "high", "medium", "low"},
             set(document.get("summary", {}).get("by_severity", {})),
+        )
+        self.assertRegex(
+            document.get("coverage", {}).get("digest", ""),
+            r"^sha256:[0-9a-f]{64}$",
         )
 
     def test_sarif_output_is_valid_and_byte_deterministic(self) -> None:

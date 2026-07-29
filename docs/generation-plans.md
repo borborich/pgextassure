@@ -21,11 +21,14 @@ pgextassure scan /path/to/extension \
 ```
 
 A scan with a generation plan requires a directory root. Regular JSON reports
-use schema `1.1` when generation metadata is present; scans without a plan
-remain schema `1.0`. JSON, grouped JSON, SARIF, and text reports all bind the
-generation-plan digest to the result.
+use schema `1.3`; generation metadata is an optional top-level object. JSON,
+grouped JSON, SARIF, and text reports all bind the generation-plan digest to
+the result.
 
 ## Schema
+
+The normative contract is
+[`schemas/generation-plan-1.0.schema.json`](../schemas/generation-plan-1.0.schema.json).
 
 ```json
 {

@@ -78,8 +78,7 @@ pgextassure scan /path/to/postgres-extension \
   --fail-on none
 ```
 
-`grouped-json` is a separate report type, so scans without admission state keep
-the existing JSON v1 and SARIF contracts. Its summary reports both raw finding
+`grouped-json` is a separate report type. Its summary reports both raw finding
 count and root-cause count. Rules without an explicit semantic identity remain
 location-scoped and are never merged heuristically.
 
@@ -116,6 +115,19 @@ exceptions require an exact root-cause ID, owner, reason, and expiry date; an
 expired exception blocks again. See
 [Baselines and suppressions](docs/admission-state.md).
 
+For a centrally reviewed gate, supply a strict organization policy:
+
+```bash
+pgextassure scan /path/to/postgres-extension \
+  --policy pgextassure-policy.json \
+  --format grouped-json \
+  --output pgextassure-grouped.json
+```
+
+The policy owns the gate, can block exact capabilities or rules, and controls
+whether baseline/suppression mechanisms are allowed. See
+[Organization policy](docs/organization-policy.md).
+
 Exit behavior is controlled by `--fail-on`:
 
 ```text
@@ -151,6 +163,7 @@ Example summary:
 ```text
 PgExtAssure 0.1.0-alpha.2
 Manifest: sha256:93c7a1aa82da96c290155124b31fcfaa15e369d105cef327c38c17e1b82d8128
+Coverage: sha256:7cd80d20a4cdb7b1b88828e3d769f36a3353e6c955e07b65f717efa0d9c62a51 | Skipped: 0
 Files: 6 | Findings: 0 (critical 0, high 0, medium 0, low 0)
 ```
 
@@ -204,6 +217,7 @@ Action inputs:
 | `baseline` | empty | Optional reviewed root-cause baseline |
 | `suppressions` | empty | Optional owner-attributed expiring suppressions |
 | `evaluated-on` | current UTC date | Explicit `YYYY-MM-DD` suppression evaluation date |
+| `policy` | empty | Optional organization policy that owns the gate |
 | `fail-on` | `none` | Minimum blocking severity, or `none` |
 | `python-version` | `3.11` | Python used to run PgExtAssure |
 
@@ -243,6 +257,11 @@ found, when a supported source is non-regular, or when the tree contains a
 symlinked directory/source that could escape the reviewed boundary. It also
 enforces limits on total entries, directories, path depth, path length, source
 files, bytes, and findings.
+
+Every report exposes the exact static boundary: analyzed files are
+content-hashed in the manifest, while unsupported entries appear in a bounded
+metadata-only skipped-file inventory. See
+[Report schemas and coverage](docs/report-schemas.md).
 
 See [Rule reference](docs/rules.md) for the implemented checks and input
 coverage.

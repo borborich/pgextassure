@@ -1,0 +1,39 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/grouped-report-1.2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "admission": {"type": "object"},
+    "coverage": {"type": "object"},
+    "generation": {"type": "object"},
+    "grouping": {
+      "additionalProperties": false,
+      "properties": {
+        "semantic_rules": {"items": {"type": "string"}, "type": "array"},
+        "strategy": {"type": "string"}
+      },
+      "required": ["strategy", "semantic_rules"],
+      "type": "object"
+    },
+    "manifest": {"type": "object"},
+    "policy": {"type": "object"},
+    "report_type": {"const": "pgextassure.root-cause-groups"},
+    "root_causes": {"items": {"type": "object"}, "type": "array"},
+    "schema_version": {"const": "1.2"},
+    "source_report_schema_version": {"const": "1.3"},
+    "summary": {"type": "object"},
+    "tool": {"type": "object"}
+  },
+  "required": [
+    "schema_version",
+    "report_type",
+    "tool",
+    "manifest",
+    "coverage",
+    "grouping",
+    "summary",
+    "root_causes"
+  ],
+  "title": "PgExtAssure grouped report 1.2",
+  "type": "object"
+}

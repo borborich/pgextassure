@@ -208,10 +208,11 @@ def grouped_report_document(report: ScanReport) -> dict[str, Any]:
                 if key not in {"root_cause_id", "rule_id", "severity"}
             }
     document = {
-        "schema_version": "1.1" if report.admission is not None else "1.0",
+        "schema_version": "1.2",
         "report_type": "pgextassure.root-cause-groups",
         "tool": dict(report.tool),
         "manifest": report.manifest.to_dict(),
+        "coverage": report.coverage.to_dict(),
         "grouping": {
             "strategy": GROUPING_STRATEGY,
             "semantic_rules": sorted(_SEMANTIC_ROUTINE_RULES),
@@ -234,5 +235,8 @@ def grouped_report_document(report: ScanReport) -> dict[str, Any]:
         document["source_report_schema_version"] = report.schema_version
     if report.admission is not None:
         document["admission"] = report.admission
+        document["source_report_schema_version"] = report.schema_version
+    if report.policy is not None:
+        document["policy"] = report.policy
         document["source_report_schema_version"] = report.schema_version
     return document

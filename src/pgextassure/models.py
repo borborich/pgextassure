@@ -96,6 +96,41 @@ class ScanManifest:
 
 
 @dataclass(frozen=True, slots=True)
+class SkippedFile:
+    path: str
+    kind: str
+    reason: str
+    size: int | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        document: dict[str, Any] = {
+            "path": self.path,
+            "kind": self.kind,
+            "reason": self.reason,
+        }
+        if self.size is not None:
+            document["size"] = self.size
+        return document
+
+
+@dataclass(frozen=True, slots=True)
+class ScanCoverage:
+    algorithm: str
+    digest: str
+    analyzed_files: int
+    skipped_files: tuple[SkippedFile, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "algorithm": self.algorithm,
+            "digest": self.digest,
+            "analyzed_files": self.analyzed_files,
+            "skipped_count": len(self.skipped_files),
+            "skipped_files": [item.to_dict() for item in self.skipped_files],
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ScanSummary:
     files_scanned: int
     findings: int
@@ -116,16 +151,19 @@ class ScanReport:
     schema_version: str
     tool: dict[str, str]
     manifest: ScanManifest
+    coverage: ScanCoverage
     summary: ScanSummary
     findings: tuple[Finding, ...]
     generation: dict[str, Any] | None = None
     admission: dict[str, Any] | None = None
+    policy: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         document = {
             "schema_version": self.schema_version,
             "tool": dict(self.tool),
             "manifest": self.manifest.to_dict(),
+            "coverage": self.coverage.to_dict(),
             "summary": self.summary.to_dict(),
             "findings": [finding.to_dict() for finding in self.findings],
         }
@@ -133,6 +171,8 @@ class ScanReport:
             document["generation"] = self.generation
         if self.admission is not None:
             document["admission"] = self.admission
+        if self.policy is not None:
+            document["policy"] = self.policy
         return document
 
 

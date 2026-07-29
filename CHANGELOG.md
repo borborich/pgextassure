@@ -8,6 +8,12 @@ and releases use semantic versioning.
 
 ### Added
 
+- Regular report schema `1.3` and grouped report schema `1.2` with a
+  deterministic, bounded skipped-file coverage inventory.
+- Draft 2020-12 JSON Schemas for reports, generation plans, baselines,
+  suppressions, and organization policy files.
+- Strict ruleset-bound organization policies with severity, exact
+  capability/rule gates, and admission-mechanism controls.
 - Ruleset-bound root-cause baselines for introducing a CI gate without hiding
   existing findings.
 - Exact, owner-attributed suppressions with required reasons and inclusive

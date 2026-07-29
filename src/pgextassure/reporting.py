@@ -167,6 +167,8 @@ def to_sarif(report: ScanReport, *, path_prefix: str = "") -> dict[str, Any]:
     run_properties: dict[str, Any] = {
         "manifestDigest": report.manifest.digest,
         "filesScanned": report.summary.files_scanned,
+        "coverageDigest": report.coverage.digest,
+        "skippedFiles": len(report.coverage.skipped_files),
     }
     if report.generation is not None:
         plan = report.generation["plan"]
@@ -190,6 +192,18 @@ def to_sarif(report: ScanReport, *, path_prefix: str = "") -> dict[str, Any]:
             run_properties["suppressionsDigest"] = admission["suppressions"][
                 "digest"
             ]
+    if report.policy is not None:
+        run_properties.update(
+            {
+                "policyDigest": report.policy["digest"],
+                "policyBlockedRootCauses": report.policy["result"][
+                    "blocked_count"
+                ],
+                "policyCoverageViolation": report.policy["result"][
+                    "coverage_violation"
+                ],
+            }
+        )
     return {
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "version": "2.1.0",
@@ -229,6 +243,10 @@ def render_text(report: ScanReport) -> str:
         f"PgExtAssure {report.tool['version']}",
         f"Manifest: {report.manifest.digest}",
         (
+            f"Coverage: {report.coverage.digest} | "
+            f"Skipped: {len(report.coverage.skipped_files)}"
+        ),
+        (
             f"Files: {summary.files_scanned} | Findings: {summary.findings} "
             f"(critical {counts['critical']}, high {counts['high']}, "
             f"medium {counts['medium']}, low {counts['low']})"
@@ -252,6 +270,15 @@ def render_text(report: ScanReport) -> str:
             f"baselined {admission_summary['baselined']}, "
             f"suppressed {admission_summary['suppressed']}, "
             f"expired {admission_summary['expired']}"
+        )
+    if report.policy is not None:
+        policy_result = report.policy["result"]
+        lines.append(
+            "Policy: "
+            f"{report.policy['digest']} | "
+            f"blocked root causes {policy_result['blocked_count']} | "
+            "coverage violation "
+            f"{'yes' if policy_result['coverage_violation'] else 'no'}"
         )
     for finding in report.findings:
         location = sanitize_terminal_text(finding.path)

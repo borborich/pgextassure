@@ -1,0 +1,52 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/generation-plan-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "input": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {"minLength": 1, "type": "string"},
+        "sha256": {"pattern": "^sha256:[0-9a-f]{64}$", "type": "string"}
+      },
+      "required": ["path", "sha256"],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifacts": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "inputs": {
+            "items": {"$ref": "#/$defs/input"},
+            "minItems": 1,
+            "type": "array"
+          },
+          "path": {"pattern": "\\.(sql|control)$", "type": "string"},
+          "substitutions": {
+            "additionalProperties": {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            "maxProperties": 256,
+            "propertyNames": {
+              "pattern": "^(?:@[A-Z][A-Z0-9_]*@|[A-Z][A-Z0-9_]*)$"
+            },
+            "type": "object"
+          },
+          "template": {"minLength": 1, "type": "string"}
+        },
+        "required": ["path", "inputs"],
+        "type": "object"
+      },
+      "maxItems": 1024,
+      "minItems": 1,
+      "type": "array"
+    },
+    "schema_version": {"const": "1.0"}
+  },
+  "required": ["schema_version", "artifacts"],
+  "title": "PgExtAssure generation plan 1.0",
+  "type": "object"
+}
