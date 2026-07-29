@@ -32,8 +32,8 @@ REQUIRED_CONTENT = {
     "signature-verify.json": b'{"valid":true}\n',
     "verification.md": b"# Independent verification\n",
 }
-WHEEL_NAME = "pgextassure-0.1.0a11-py3-none-any.whl"
-SDIST_NAME = "pgextassure-0.1.0a11.tar.gz"
+WHEEL_NAME = "pgextassure-0.1.0a12-py3-none-any.whl"
+SDIST_NAME = "pgextassure-0.1.0a12.tar.gz"
 
 
 class EnterprisePilotPackageTests(unittest.TestCase):

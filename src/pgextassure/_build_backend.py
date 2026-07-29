@@ -20,7 +20,7 @@ import zipfile
 
 
 NAME = "pgextassure"
-VERSION = "0.1.0a11"
+VERSION = "0.1.0a12"
 DIST_INFO = f"{NAME}-{VERSION}.dist-info"
 WHEEL_NAME = f"{NAME}-{VERSION}-py3-none-any.whl"
 SDIST_NAME = f"{NAME}-{VERSION}.tar.gz"
