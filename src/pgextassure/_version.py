@@ -1,4 +1,4 @@
 """Canonical package and public release version identifiers."""
 
-PACKAGE_VERSION = "0.1.0a7"
-RELEASE_VERSION = "0.1.0-alpha.7"
+PACKAGE_VERSION = "0.1.0a8"
+RELEASE_VERSION = "0.1.0-alpha.8"
