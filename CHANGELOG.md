@@ -6,6 +6,8 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.10] - 2026-07-29
+
 ### Added
 
 - Enterprise Pilot Package `1.0` with a deterministic flat ZIP, canonical
@@ -150,7 +152,8 @@ and releases use semantic versioning.
 - Gate-preserving broken-pipe handling and stricter `pg_temp` placement for
   recognized safe `SECURITY DEFINER` search paths.
 
-[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.9...HEAD
+[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.10...HEAD
+[0.1.0-alpha.10]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.9...v0.1.0-alpha.10
 [0.1.0-alpha.9]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.8...v0.1.0-alpha.9
 [0.1.0-alpha.8]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.7...v0.1.0-alpha.8
 [0.1.0-alpha.7]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.6...v0.1.0-alpha.7
