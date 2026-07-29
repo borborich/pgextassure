@@ -18,6 +18,12 @@ reason.
 | AC-10 | Decision boundary | Valid evidence is not treated as automatic installation authority |
 | AC-11 | Reproducibility | Same source and control inputs produce the same unsigned evidence bytes |
 | AC-12 | Key handling | Private key and passphrase are absent from delivered artifacts and logs |
+| AC-13 | Trust anchor | Exact trust-policy digest is obtained independently |
+| AC-14 | Key revocation | A revoked trusted key produces a deny receipt |
+| AC-15 | Evidence age | Stale or future evidence/signatures produce deny receipts |
+| AC-16 | Policy binding | A non-allowlisted evidence policy digest is denied |
+| AC-17 | Request context | Modified request ID, target, or evaluation date fails verification |
+| AC-18 | Receipt lifetime | Expired receipts remain verifiable but are not active |
 
 Suggested retained record:
 
@@ -28,9 +34,12 @@ PgExtAssure release commit:
 Evidence bundle SHA-256:
 Corporate signer ID:
 Trusted public-key SHA-256:
+Enterprise trust-policy SHA-256:
+Request ID and target:
 Verification date:
 Verifier:
 Gate:
+Admission Receipt decision and valid-until:
 Criteria passed:
 Exceptions, owner, expiry:
 Final pilot disposition:

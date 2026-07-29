@@ -6,6 +6,15 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Enterprise Trust Policy `1.0` with exact signer fingerprints,
+  validity/revocation windows, tool/ruleset/evidence-policy constraints, and
+  evidence/signature age limits.
+- Deterministic Admission Receipt `1.0` with closed deny reasons, bounded
+  request context, expiry, offline recomputation, and explicit active/inactive
+  enforcement.
+
 ## [0.1.0-alpha.8] - 2026-07-29
 
 ### Added

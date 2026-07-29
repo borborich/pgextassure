@@ -1,0 +1,181 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/admission-receipt-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "date": {
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "type": "string"
+    },
+    "digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "nullableDigest": {
+      "anyOf": [
+        {"$ref": "#/$defs/digest"},
+        {"type": "null"}
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "decision": {
+      "additionalProperties": false,
+      "properties": {
+        "reasons": {
+          "items": {
+            "enum": [
+              "trust-policy-not-effective",
+              "trust-policy-expired",
+              "gate-not-allowed",
+              "tool-version-not-allowed",
+              "ruleset-version-not-allowed",
+              "evidence-schema-not-allowed",
+              "evidence-policy-not-allowed",
+              "evidence-from-future",
+              "evidence-too-old",
+              "signature-before-evidence",
+              "signature-from-future",
+              "signature-too-old",
+              "untrusted-signer",
+              "signer-not-yet-valid",
+              "signer-expired",
+              "signer-revoked"
+            ]
+          },
+          "maxItems": 16,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "result": {"enum": ["admit", "deny"]}
+      },
+      "required": ["result", "reasons"],
+      "type": "object"
+    },
+    "evaluator": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {"const": "pgextassure"},
+        "version": {"maxLength": 128, "minLength": 1, "type": "string"}
+      },
+      "required": ["name", "version"],
+      "type": "object"
+    },
+    "receipt_type": {"const": "pgextassure.admission-receipt"},
+    "request": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {"maxLength": 512, "minLength": 1, "type": "string"},
+        "target": {"maxLength": 512, "minLength": 1, "type": "string"}
+      },
+      "required": ["id", "target"],
+      "type": "object"
+    },
+    "schema_version": {"const": "1.0"},
+    "signature": {
+      "additionalProperties": false,
+      "properties": {
+        "created_on": {"$ref": "#/$defs/date"},
+        "profile": {"const": "rsa-pss-sha256"},
+        "public_key_sha256": {"$ref": "#/$defs/digest"},
+        "signer_id": {"maxLength": 512, "minLength": 1, "type": "string"}
+      },
+      "required": [
+        "profile",
+        "created_on",
+        "signer_id",
+        "public_key_sha256"
+      ],
+      "type": "object"
+    },
+    "subject": {
+      "additionalProperties": false,
+      "properties": {
+        "component": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {"maxLength": 256, "minLength": 1, "type": "string"},
+            "version": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": ["string", "null"]
+            }
+          },
+          "required": ["name", "version"],
+          "type": "object"
+        },
+        "coverage_digest": {"$ref": "#/$defs/digest"},
+        "digest": {"$ref": "#/$defs/digest"},
+        "evidence_created_on": {"$ref": "#/$defs/date"},
+        "gate": {"enum": ["pass", "blocked"]},
+        "manifest_digest": {"$ref": "#/$defs/digest"},
+        "media_type": {
+          "const": "application/vnd.pgextassure.evidence+zip"
+        },
+        "policy_digest": {"$ref": "#/$defs/nullableDigest"},
+        "tool": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {"const": "pgextassure"},
+            "ruleset_version": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": ["name", "version", "ruleset_version"],
+          "type": "object"
+        }
+      },
+      "required": [
+        "media_type",
+        "digest",
+        "gate",
+        "evidence_created_on",
+        "manifest_digest",
+        "coverage_digest",
+        "policy_digest",
+        "component",
+        "tool"
+      ],
+      "type": "object"
+    },
+    "trust_policy": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {"$ref": "#/$defs/digest"},
+        "id": {"maxLength": 256, "minLength": 1, "type": "string"}
+      },
+      "required": ["id", "digest"],
+      "type": "object"
+    },
+    "validity": {
+      "additionalProperties": false,
+      "properties": {
+        "evaluated_on": {"$ref": "#/$defs/date"},
+        "valid_until": {"$ref": "#/$defs/date"}
+      },
+      "required": ["evaluated_on", "valid_until"],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "receipt_type",
+    "evaluator",
+    "request",
+    "validity",
+    "decision",
+    "trust_policy",
+    "subject",
+    "signature"
+  ],
+  "title": "PgExtAssure Admission Receipt 1.0",
+  "type": "object"
+}

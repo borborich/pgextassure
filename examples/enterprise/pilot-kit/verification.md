@@ -34,3 +34,35 @@ evidence that the policy blocked the subject, not permission to install it.
 For a negative control, make a copy of one delivered artifact, alter it, and
 confirm the corresponding verifier exits `3`. Never alter the retained
 originals.
+
+After replacing the placeholder signer in `../trust-policy.json`, create and
+independently recompute an Admission Receipt:
+
+```bash
+python -m pgextassure trust evaluate pgextassure-evidence.zip \
+  --statement pgextassure-signature.json \
+  --signature pgextassure-signature.bin \
+  --public-key pgextassure-public-key.pem \
+  --trust-policy ../trust-policy.json \
+  --evaluated-on 2026-07-29 \
+  --request-id PILOT-2026-0042 \
+  --target pilot/postgresql-extension \
+  --output pgextassure-admission-receipt.json
+
+python -m pgextassure trust verify-receipt \
+  pgextassure-admission-receipt.json \
+  --bundle pgextassure-evidence.zip \
+  --statement pgextassure-signature.json \
+  --signature pgextassure-signature.bin \
+  --public-key pgextassure-public-key.pem \
+  --trust-policy ../trust-policy.json \
+  --expected-trust-policy-sha256 \
+  'sha256:TRUSTED_64_HEX_DIGEST' \
+  --expected-request-id PILOT-2026-0042 \
+  --expected-target pilot/postgresql-extension \
+  --expected-evaluated-on 2026-07-29 \
+  --verified-on 2026-07-29
+```
+
+The ticket or deployment system must enforce request-ID uniqueness. PgExtAssure
+binds and verifies the context but does not maintain a shared replay database.

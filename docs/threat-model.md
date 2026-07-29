@@ -98,6 +98,14 @@ inside that operation's trust boundary. The scanner itself never invokes
 OpenSSL. PgExtAssure does not establish signer identity, manage key lifecycle,
 or convert a valid signature into admission authority.
 
+Enterprise Trust Policy evaluation is a later authorization layer. The exact
+policy bytes, independently trusted policy digest, request ID, deployment
+target, evaluation date, and the system that distributes them are within its
+trust boundary. Admission Receipts are recomputable records, not independently
+signed bearer tokens. PgExtAssure verifies their complete correlation but does
+not maintain shared state, enforce one-time request consumption, or know
+whether an otherwise-valid receipt was replayed in another system.
+
 ## Threats the static MVP can surface
 
 Subject to the implemented rules and parser coverage, reports may surface:

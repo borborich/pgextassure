@@ -48,15 +48,29 @@ from .signing import (
     sign_evidence_bundle,
     verify_evidence_signature,
 )
+from .trust import (
+    AdmissionReceipt,
+    AdmissionReceiptVerification,
+    EnterpriseTrustPolicy,
+    TrustError,
+    TrustPolicyError,
+    TrustVerificationError,
+    evaluate_admission,
+    load_trust_policy,
+    verify_admission_receipt,
+)
 from ._version import PACKAGE_VERSION, RELEASE_VERSION
 
 __all__ = [
     "AdmissionError",
+    "AdmissionReceipt",
+    "AdmissionReceiptVerification",
     "Baseline",
     "BUNDLE_SCHEMA_VERSION",
     "EVIDENCE_PREDICATE_TYPE",
     "EvidenceError",
     "EvidenceVerification",
+    "EnterpriseTrustPolicy",
     "Finding",
     "FindingLocation",
     "GeneratedArtifact",
@@ -76,21 +90,27 @@ __all__ = [
     "Severity",
     "Suppression",
     "SuppressionSet",
+    "TrustError",
+    "TrustPolicyError",
+    "TrustVerificationError",
     "apply_admission",
     "build_spdx_inventory",
     "create_evidence_bundle",
     "create_baseline_document",
     "group_findings",
     "grouped_report_document",
+    "evaluate_admission",
     "load_generation_plan",
     "load_baseline",
     "load_suppressions",
+    "load_trust_policy",
     "load_scope_plan",
     "parse_scope_plan",
     "scan_path",
     "sign_evidence_bundle",
     "verify_evidence_bundle",
     "verify_evidence_signature",
+    "verify_admission_receipt",
 ]
 
 __version__ = PACKAGE_VERSION

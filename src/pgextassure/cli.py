@@ -58,6 +58,12 @@ from .signing import (
     verify_evidence_signature,
 )
 from .scope import ScopePlanError, load_scope_plan
+from .trust import (
+    TrustPolicyError,
+    TrustVerificationError,
+    evaluate_admission,
+    verify_admission_receipt,
+)
 
 
 EXIT_OK = 0
@@ -337,6 +343,79 @@ def _parser() -> argparse.ArgumentParser:
         default="text",
         dest="output_format",
     )
+    trust = subcommands.add_parser(
+        "trust",
+        help="evaluate signed evidence against an enterprise trust policy",
+    )
+    trust_commands = trust.add_subparsers(
+        dest="trust_command",
+        required=True,
+    )
+    trust_evaluate = trust_commands.add_parser(
+        "evaluate",
+        help="create a deterministic admission receipt",
+    )
+    trust_evaluate.add_argument("path", metavar="BUNDLE")
+    trust_evaluate.add_argument("--statement", metavar="FILE", required=True)
+    trust_evaluate.add_argument("--signature", metavar="FILE", required=True)
+    trust_evaluate.add_argument("--public-key", metavar="FILE", required=True)
+    trust_evaluate.add_argument(
+        "--trust-policy",
+        metavar="FILE",
+        required=True,
+    )
+    trust_evaluate.add_argument(
+        "--evaluated-on",
+        metavar="YYYY-MM-DD",
+        help="explicit evaluation date; defaults to the current UTC date",
+    )
+    trust_evaluate.add_argument("--request-id", required=True)
+    trust_evaluate.add_argument("--target", required=True)
+    trust_evaluate.add_argument("--openssl", metavar="FILE")
+    trust_evaluate.add_argument("--output", metavar="FILE", required=True)
+    trust_evaluate.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
+    )
+    trust_verify = trust_commands.add_parser(
+        "verify-receipt",
+        help="recompute a receipt and check whether admission remains active",
+    )
+    trust_verify.add_argument("path", metavar="RECEIPT")
+    trust_verify.add_argument("--bundle", metavar="FILE", required=True)
+    trust_verify.add_argument("--statement", metavar="FILE", required=True)
+    trust_verify.add_argument("--signature", metavar="FILE", required=True)
+    trust_verify.add_argument("--public-key", metavar="FILE", required=True)
+    trust_verify.add_argument(
+        "--trust-policy",
+        metavar="FILE",
+        required=True,
+    )
+    trust_verify.add_argument(
+        "--expected-trust-policy-sha256",
+        metavar="sha256:DIGEST",
+    )
+    trust_verify.add_argument("--expected-request-id", required=True)
+    trust_verify.add_argument("--expected-target", required=True)
+    trust_verify.add_argument(
+        "--expected-evaluated-on",
+        metavar="YYYY-MM-DD",
+        required=True,
+    )
+    trust_verify.add_argument(
+        "--verified-on",
+        metavar="YYYY-MM-DD",
+        help="receipt-use date; defaults to the current UTC date",
+    )
+    trust_verify.add_argument("--openssl", metavar="FILE")
+    trust_verify.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
+    )
     return parser
 
 
@@ -572,6 +651,43 @@ def _render_signature_summary(summary: dict[str, object]) -> str:
     ) + "\n"
 
 
+def _render_trust_summary(summary: dict[str, object]) -> str:
+    reasons = summary["reasons"]
+    assert isinstance(reasons, list)
+    return "\n".join(
+        (
+            f"PgExtAssure admission receipt {summary['schema_version']}: valid",
+            f"Decision: {summary['decision']}",
+            (
+                "Active: "
+                + (
+                    "yes"
+                    if summary.get(
+                        "active",
+                        summary["decision"] == "admit",
+                    )
+                    else "no"
+                )
+            ),
+            f"Request: {summary['request_id']}",
+            f"Target: {summary['target']}",
+            f"Evaluated on: {summary['evaluated_on']}",
+            f"Valid until: {summary['valid_until']}",
+            (
+                "Reasons: "
+                + (
+                    ", ".join(str(reason) for reason in reasons)
+                    if reasons
+                    else "none"
+                )
+            ),
+            f"Trust policy: {summary['trust_policy_digest']}",
+            f"Subject: {summary['subject_digest']}",
+            f"Signer: {summary['signer_id']}",
+        )
+    ) + "\n"
+
+
 def _silence_broken_stdout() -> None:
     """Prevent Python's shutdown flush from replacing the intended exit code."""
 
@@ -664,6 +780,170 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return EXIT_USAGE
         return EXIT_OK
+
+    if arguments.command == "trust" and arguments.trust_command == "evaluate":
+        try:
+            output_path = os.path.abspath(arguments.output)
+            protected_paths = {
+                os.path.abspath(value)
+                for value in (
+                    arguments.path,
+                    arguments.statement,
+                    arguments.signature,
+                    arguments.public_key,
+                    arguments.trust_policy,
+                )
+            }
+            if arguments.openssl:
+                protected_paths.add(os.path.abspath(arguments.openssl))
+            if output_path in protected_paths:
+                raise TrustPolicyError(
+                    "admission receipt must not overwrite a trust input"
+                )
+            evaluated_on = (
+                parse_admission_date(
+                    arguments.evaluated_on,
+                    label="trust evaluated_on",
+                )
+                if arguments.evaluated_on
+                else datetime.now(timezone.utc).date()
+            )
+            receipt = evaluate_admission(
+                arguments.path,
+                statement_path=arguments.statement,
+                signature_path=arguments.signature,
+                public_key_path=arguments.public_key,
+                trust_policy_path=arguments.trust_policy,
+                evaluated_on=evaluated_on,
+                request_id=arguments.request_id,
+                target=arguments.target,
+                openssl_path=arguments.openssl,
+            )
+            _write_binary_output(arguments.output, receipt.receipt)
+            rendered = (
+                json.dumps(
+                    receipt.summary,
+                    ensure_ascii=False,
+                    allow_nan=False,
+                    sort_keys=True,
+                    indent=2,
+                )
+                + "\n"
+                if arguments.output_format == "json"
+                else _render_trust_summary(receipt.summary)
+            )
+            sys.stdout.write(rendered)
+            sys.stdout.flush()
+            return (
+                EXIT_OK
+                if receipt.summary["decision"] == "admit"
+                else EXIT_FINDINGS
+            )
+        except (TrustPolicyError, AdmissionError) as error:
+            print(
+                f"pgextassure: enterprise trust policy: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        except TrustVerificationError as error:
+            print(
+                f"pgextassure: trust verification failed: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_SCAN_ERROR
+        except BrokenPipeError:
+            _silence_broken_stdout()
+            return (
+                EXIT_OK
+                if receipt.summary["decision"] == "admit"
+                else EXIT_FINDINGS
+            )
+        except OSError as error:
+            print(
+                "pgextassure: cannot write output: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+
+    if (
+        arguments.command == "trust"
+        and arguments.trust_command == "verify-receipt"
+    ):
+        try:
+            verified_on = (
+                parse_admission_date(
+                    arguments.verified_on,
+                    label="receipt verified_on",
+                )
+                if arguments.verified_on
+                else datetime.now(timezone.utc).date()
+            )
+            expected_evaluated_on = parse_admission_date(
+                arguments.expected_evaluated_on,
+                label="receipt expected_evaluated_on",
+            )
+            verification = verify_admission_receipt(
+                arguments.path,
+                arguments.bundle,
+                statement_path=arguments.statement,
+                signature_path=arguments.signature,
+                public_key_path=arguments.public_key,
+                trust_policy_path=arguments.trust_policy,
+                verified_on=verified_on,
+                expected_request_id=arguments.expected_request_id,
+                expected_target=arguments.expected_target,
+                expected_evaluated_on=expected_evaluated_on,
+                expected_trust_policy_sha256=(
+                    arguments.expected_trust_policy_sha256
+                ),
+                openssl_path=arguments.openssl,
+            )
+            rendered = (
+                json.dumps(
+                    verification.summary,
+                    ensure_ascii=False,
+                    allow_nan=False,
+                    sort_keys=True,
+                    indent=2,
+                )
+                + "\n"
+                if arguments.output_format == "json"
+                else _render_trust_summary(verification.summary)
+            )
+            sys.stdout.write(rendered)
+            sys.stdout.flush()
+            return EXIT_OK if verification.summary["active"] else EXIT_FINDINGS
+        except (TrustPolicyError, AdmissionError) as error:
+            print(
+                f"pgextassure: enterprise trust policy: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        except TrustVerificationError as error:
+            print(
+                f"pgextassure: admission receipt verification failed: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_SCAN_ERROR
+        except BrokenPipeError:
+            _silence_broken_stdout()
+            return (
+                EXIT_OK
+                if verification.summary["active"]
+                else EXIT_FINDINGS
+            )
+        except OSError as error:
+            print(
+                "pgextassure: cannot write output: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
 
     if (
         arguments.command == "evidence"

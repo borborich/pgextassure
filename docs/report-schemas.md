@@ -16,7 +16,9 @@ Current contracts:
 - suppressions `1.0`;
 - organization policy `1.0`;
 - Evidence Bundle index `1.0`;
-- Corporate Evidence Signature statement `1.0`.
+- Corporate Evidence Signature statement `1.0`;
+- Enterprise Trust Policy `1.0`;
+- Admission Receipt `1.0`.
 
 Agent Review Pack `1.0` is described by
 [`agent-review-pack-1.0.schema.json`](../schemas/agent-review-pack-1.0.schema.json).
@@ -41,6 +43,14 @@ Corporate Evidence Signature statement `1.0` is described by
 The offline verifier additionally requires canonical JSON, a matching
 RSA-PSS-SHA256 signature with an RSA key of at least 3072 bits, exact subject
 bytes, and exact verified Evidence Bundle metadata.
+
+Enterprise Trust Policy `1.0` is described by
+[`enterprise-trust-policy-1.0.schema.json`](../schemas/enterprise-trust-policy-1.0.schema.json).
+Admission Receipt `1.0` is described by
+[`admission-receipt-1.0.schema.json`](../schemas/admission-receipt-1.0.schema.json).
+The receipt verifier additionally recomputes the complete document from the
+signed Evidence Bundle, exact trust policy, and externally expected request
+context.
 
 ## Coverage inventory
 

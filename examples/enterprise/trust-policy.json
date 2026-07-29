@@ -1,0 +1,36 @@
+{
+  "effective_from": "2026-07-29",
+  "expires_on": "2027-07-29",
+  "policy_id": "example/postgresql-production",
+  "policy_type": "pgextassure.enterprise-trust-policy",
+  "requirements": {
+    "allowed_evidence_schema_versions": [
+      "1.0"
+    ],
+    "allowed_gates": [
+      "pass"
+    ],
+    "allowed_policy_digests": [
+      "sha256:c746a68e0203dfff539d745c57967e1b8fef24b6a4c70c5ab5072095beb327b5"
+    ],
+    "allowed_ruleset_versions": [
+      "2026-07-29.6"
+    ],
+    "allowed_tool_versions": [
+      "0.1.0-alpha.8"
+    ],
+    "maximum_evidence_age_days": 30,
+    "maximum_signature_age_days": 30,
+    "receipt_valid_days": 7
+  },
+  "schema_version": "1.0",
+  "signers": [
+    {
+      "id": "REPLACE_WITH_ORGANIZATION_SIGNER_ID",
+      "public_key_sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "revoked_on": null,
+      "valid_from": "2026-07-29",
+      "valid_until": "2027-07-29"
+    }
+  ]
+}
