@@ -82,6 +82,20 @@ pgextassure scan /path/to/postgres-extension \
 count and root-cause count. Rules without an explicit semantic identity remain
 location-scoped and are never merged heuristically.
 
+Create a deterministic work queue for a security engineer or AI coding agent:
+
+```bash
+pgextassure scan /path/to/postgres-extension \
+  --format review-json \
+  --output pgextassure-review.json \
+  --fail-on none
+```
+
+Agent Review Pack `1.0` binds every task to the exact grouped report and source
+manifest, carries a closed disposition vocabulary, contains no source-file
+payloads, and explicitly cannot grant admission. See
+[Agent Review Pack](docs/agent-review-pack.md).
+
 If reviewed build metadata generates an install SQL or control file that is
 absent from the source tree, supply a pinned, non-executing generation plan:
 
@@ -234,7 +248,7 @@ Action inputs:
 | Input | Default | Meaning |
 | --- | --- | --- |
 | `path` | `.` | Extension source directory or supported input file |
-| `format` | `sarif` | `text`, `json`, `grouped-json`, or `sarif` |
+| `format` | `sarif` | `text`, `json`, `grouped-json`, `review-json`, or `sarif` |
 | `output` | `pgextassure.sarif` | Report file; set to an empty string for stdout |
 | `generation-plan` | empty | Optional reviewed, pinned generated-artifact declaration |
 | `baseline` | empty | Optional reviewed root-cause baseline |
@@ -464,6 +478,7 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Organization policy](docs/organization-policy.md)
 - [GitHub annotations](docs/github-annotations.md)
 - [Evidence bundles](docs/evidence-bundles.md)
+- [Agent Review Pack](docs/agent-review-pack.md)
 - [Enterprise pilot](docs/enterprise-pilot.md)
 - [Roadmap](docs/roadmap.md)
 - [Public corpus pilot](benchmarks/public-corpus/README.md)

@@ -23,7 +23,7 @@ inputs:
     required: false
     default: .
   format:
-    description: Report format (text, json, grouped-json, or sarif)
+    description: Report format (text, json, grouped-json, review-json, or sarif)
     required: false
     default: sarif
   output:

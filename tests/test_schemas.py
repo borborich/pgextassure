@@ -9,6 +9,7 @@ import unittest
 
 from pgextassure.evidence import verify_evidence_bundle
 from pgextassure.grouping import grouped_report_document
+from pgextassure.review import review_pack_document
 from pgextassure.scanner import scan_path
 from tests.support import SAFE_ROOT, run_cli
 
@@ -20,7 +21,7 @@ class PublishedSchemaTests(unittest.TestCase):
     def test_all_schema_files_are_unique_draft_2020_12_documents(self) -> None:
         identifiers: set[str] = set()
         schemas = sorted(SCHEMA_ROOT.glob("*.schema.json"))
-        self.assertEqual(7, len(schemas))
+        self.assertEqual(8, len(schemas))
         for path in schemas:
             with self.subTest(path=path.name):
                 document = json.loads(path.read_text(encoding="utf-8"))
@@ -35,6 +36,7 @@ class PublishedSchemaTests(unittest.TestCase):
     def test_current_output_versions_have_published_schemas(self) -> None:
         report = scan_path(SAFE_ROOT)
         grouped = grouped_report_document(report)
+        review_pack = review_pack_document(report)
 
         scan_schema = json.loads(
             (
@@ -46,6 +48,15 @@ class PublishedSchemaTests(unittest.TestCase):
             (
                 SCHEMA_ROOT
                 / f"grouped-report-{grouped['schema_version']}.schema.json"
+            ).read_text(encoding="utf-8")
+        )
+        review_schema = json.loads(
+            (
+                SCHEMA_ROOT
+                / (
+                    "agent-review-pack-"
+                    f"{review_pack['schema_version']}.schema.json"
+                )
             ).read_text(encoding="utf-8")
         )
 
@@ -62,6 +73,13 @@ class PublishedSchemaTests(unittest.TestCase):
         )
         self.assertTrue(
             set(grouped_schema["required"]).issubset(grouped)
+        )
+        self.assertEqual(
+            review_pack["schema_version"],
+            review_schema["properties"]["schema_version"]["const"],
+        )
+        self.assertTrue(
+            set(review_schema["required"]).issubset(review_pack)
         )
 
     def test_evidence_bundle_index_has_a_published_schema(self) -> None:

@@ -45,6 +45,7 @@ from .reporting import (
     render_text,
     sanitize_terminal_text,
 )
+from .review import render_review_pack
 from .scanner import TOOL_VERSION, ScanError, ScanInputError, scan_path
 
 
@@ -71,7 +72,7 @@ def _parser() -> argparse.ArgumentParser:
     scan.add_argument("path", metavar="PATH")
     scan.add_argument(
         "--format",
-        choices=("text", "json", "grouped-json", "sarif"),
+        choices=("text", "json", "grouped-json", "review-json", "sarif"),
         default="text",
         dest="output_format",
     )
@@ -237,6 +238,8 @@ def _render(
         return render_json(report)
     if output_format == "grouped-json":
         return render_grouped_json(report)
+    if output_format == "review-json":
+        return render_review_pack(report)
     if output_format == "sarif":
         return render_sarif(report, path_prefix=sarif_path_prefix)
     return render_text(report)
