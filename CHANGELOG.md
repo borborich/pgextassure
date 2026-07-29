@@ -6,6 +6,8 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.2] - 2026-07-29
+
 ### Added
 
 - Conservative `grouped-json` reports with stable root-cause identifiers,
@@ -17,6 +19,11 @@ and releases use semantic versioning.
   build.
 - Generation-plan provenance in JSON, grouped JSON, SARIF, and text reports,
   plus GitHub Action support.
+
+### Changed
+
+- Updated the pinned `actions/checkout` and `actions/setup-python` runtimes to
+  their reviewed v7 releases.
 
 ## [0.1.0-alpha.1] - 2026-07-28
 
@@ -40,5 +47,6 @@ and releases use semantic versioning.
 - Gate-preserving broken-pipe handling and stricter `pg_temp` placement for
   recognized safe `SECURITY DEFINER` search paths.
 
-[Unreleased]: https://github.com/borborich/pgextassure/commits/main
+[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.2...HEAD
+[0.1.0-alpha.2]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
 [0.1.0-alpha.1]: https://github.com/borborich/pgextassure/releases/tag/v0.1.0-alpha.1

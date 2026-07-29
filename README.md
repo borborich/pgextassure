@@ -130,7 +130,7 @@ Remediation:
 Example summary:
 
 ```text
-PgExtAssure 0.1.0-alpha.1
+PgExtAssure 0.1.0-alpha.2
 Manifest: sha256:93c7a1aa82da96c290155124b31fcfaa15e369d105cef327c38c17e1b82d8128
 Files: 6 | Findings: 0 (critical 0, high 0, medium 0, low 0)
 ```
@@ -158,9 +158,9 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: borborich/pgextassure@v0.1.0-alpha.1
+      - uses: borborich/pgextassure@v0.1.0-alpha.2
         with:
           path: .
           format: sarif
@@ -194,7 +194,7 @@ repositories with GitHub Code Security enabled.
 
 SARIF artifact URIs are made relative to `GITHUB_WORKSPACE` when the target is
 inside that workspace, and special path characters are URI-encoded. The
-embedded `actions/setup-python` v6 runtime requires GitHub Actions Runner
+embedded `actions/setup-python` v7 runtime requires GitHub Actions Runner
 2.327.1 or newer; GitHub-hosted runners already satisfy this requirement.
 
 The Action is audit-only by default because some high-severity records are
