@@ -23,7 +23,7 @@ class PackagingContractTests(unittest.TestCase):
 
         self.assertEqual(configuration["project"]["version"], __version__)
         self.assertEqual(__version__, _build_backend.VERSION)
-        self.assertEqual("0.1.0-alpha.3", __release_version__)
+        self.assertEqual("0.1.0-alpha.4", __release_version__)
         self.assertEqual(__release_version__, TOOL_VERSION)
 
     def test_sdist_omits_hidden_worktree_files(self) -> None:
