@@ -140,6 +140,12 @@ def _root_cause_id(discriminator: tuple[object, ...]) -> str:
     return "sha256:" + hashlib.sha256(canonical_json_bytes(payload)).hexdigest()
 
 
+def root_cause_id_for_finding(finding: Finding) -> str:
+    """Return the stable root-cause identifier used by grouped reports."""
+
+    return _root_cause_id(_group_discriminator(finding))
+
+
 def group_findings(findings: Iterable[Finding]) -> tuple[RootCauseGroup, ...]:
     """Group only findings with an explicit, rule-specific semantic identity."""
 
@@ -188,8 +194,21 @@ def grouped_report_document(report: ScanReport) -> dict[str, Any]:
 
     groups = group_findings(report.findings)
     root_cause_counts = Counter(group.severity.value for group in groups)
+    root_causes = [group.to_dict() for group in groups]
+    if report.admission is not None:
+        decisions = {
+            decision["root_cause_id"]: decision
+            for decision in report.admission["decisions"]
+        }
+        for root_cause in root_causes:
+            decision = decisions[root_cause["root_cause_id"]]
+            root_cause["admission"] = {
+                key: value
+                for key, value in decision.items()
+                if key not in {"root_cause_id", "rule_id", "severity"}
+            }
     document = {
-        "schema_version": "1.0",
+        "schema_version": "1.1" if report.admission is not None else "1.0",
         "report_type": "pgextassure.root-cause-groups",
         "tool": dict(report.tool),
         "manifest": report.manifest.to_dict(),
@@ -208,9 +227,12 @@ def grouped_report_document(report: ScanReport) -> dict[str, Any]:
             },
             "capabilities": list(report.summary.capabilities),
         },
-        "root_causes": [group.to_dict() for group in groups],
+        "root_causes": root_causes,
     }
     if report.generation is not None:
         document["generation"] = report.generation
+        document["source_report_schema_version"] = report.schema_version
+    if report.admission is not None:
+        document["admission"] = report.admission
         document["source_report_schema_version"] = report.schema_version
     return document

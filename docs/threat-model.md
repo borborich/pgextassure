@@ -154,6 +154,19 @@ Generation plans additionally reject duplicate/unknown fields, path traversal,
 symlinks, non-regular or stale pinned inputs, target collisions, unsafe literal
 substitutions, and excessive plan/input/rendered-output sizes and counts.
 
+## Admission-state boundary
+
+Baselines and suppressions are human review records, not scanner findings.
+They can change whether an existing root cause trips `--fail-on`, so they must
+receive code-owner review and should be protected like deployment policy.
+
+PgExtAssure limits admission decisions to exact root-cause IDs and retains all
+underlying evidence. It rejects wildcard decisions, stale ruleset versions,
+ambiguous baseline/suppression overlap, malformed metadata, and expired
+suppressions. An attacker who can approve or replace the reviewed
+admission-state file can still accept known risk; repository authorization and
+branch protection remain outside the scanner's trust boundary.
+
 ## Admission guidance
 
 Use PgExtAssure as one input in a layered decision:

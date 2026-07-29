@@ -15,10 +15,13 @@ assurance layers should add evidence without weakening that default.
 
 - documented stable rule identifiers and report schema;
 - bounded parsing and explicit skipped-file inventory;
-- baselines and expiring, owner-attributed suppressions;
 - source/release digests and reproducible report metadata;
 - remediation tests built from accepted upstream fixes;
 - optional GitHub annotations and admission-policy templates.
+
+Implemented in the current alpha: conservative root-cause grouping plus
+ruleset-bound baselines and exact, expiring, owner-attributed suppressions that
+retain all report evidence.
 
 ## Isolated dynamic assurance
 

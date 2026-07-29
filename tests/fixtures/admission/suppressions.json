@@ -1,0 +1,15 @@
+{
+  "ruleset_version": "2026-07-28.4",
+  "schema_version": "1.0",
+  "suppressions": [
+    {
+      "expires_on": "2026-12-31",
+      "owner": "database-platform",
+      "reason": "Fixture validates explicit temporary acceptance.",
+      "root_cause_id": "sha256:bfed9ef89a032212d68e910fe1376f4d4aa0abab48d3509a8c7a4e7272914318",
+      "rule_id": "sql.copy-program",
+      "severity": "critical",
+      "ticket": "SEC-123"
+    }
+  ]
+}
