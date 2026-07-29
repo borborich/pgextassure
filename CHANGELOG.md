@@ -6,6 +6,15 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Corporate Evidence Signature Profile `1.0` with offline detached
+  RSA-PSS-SHA256 signing, minimum 3072-bit keys, canonical bundle-bound
+  statements, and fail-closed independent verification.
+- Transferable enterprise pilot kit with a thirty-minute acceptance path,
+  objective acceptance criteria, independent verification steps, and security
+  questionnaire answers.
+
 ## [0.1.0-alpha.7] - 2026-07-29
 
 ### Added

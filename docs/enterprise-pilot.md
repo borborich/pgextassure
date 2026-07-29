@@ -37,3 +37,10 @@ GitHub artifact attestations link an artifact to the repository, commit,
 workflow and OIDC-backed signer. They establish provenance and integrity, not
 security certification. Public repositories use the public Sigstore service;
 private/internal availability depends on the GitHub plan.
+
+For organizations that cannot use GitHub OIDC or an external transparency
+service, Corporate Evidence Signature Profile 1.0 provides detached offline
+RSA-PSS-SHA256 signing and verification. The transferable evaluation package
+is under [`examples/enterprise/pilot-kit/`](../examples/enterprise/pilot-kit/).
+It includes a thirty-minute acceptance path, explicit criteria, independent
+verification steps, and concise security-questionnaire answers.

@@ -90,6 +90,14 @@ Installing PgExtAssure itself is distinct from scanning the target. In the
 composite GitHub Action, the package installed from `GITHUB_ACTION_PATH` is the
 selected PgExtAssure action revision, not the target extension.
 
+Corporate evidence signing is a separate post-scan operation. It executes a
+locally selected OpenSSL binary against a verified Evidence Bundle, a bounded
+local key, and canonical statement bytes. OpenSSL, the local operating system,
+the supplied key, and the channel used to trust its public-key fingerprint are
+inside that operation's trust boundary. The scanner itself never invokes
+OpenSSL. PgExtAssure does not establish signer identity, manage key lifecycle,
+or convert a valid signature into admission authority.
+
 ## Threats the static MVP can surface
 
 Subject to the implemented rules and parser coverage, reports may surface:

@@ -36,6 +36,12 @@ digest-bound task queue for assisted review, plus an offline-validated Decision
 Ledger with exact task coverage and cited resolved dispositions. Both
 explicitly deny admission authority to the agent.
 
+It also adds Corporate Evidence Signature Profile 1.0: offline detached
+RSA-PSS-SHA256 signatures over a canonical statement that binds an already
+verified Evidence Bundle, its policy outcome, source-manifest and coverage
+digests, signer ID, and public-key fingerprint. The accompanying pilot kit is
+designed for transfer to a receiving security team without a vendor service.
+
 ## Isolated dynamic assurance
 
 Dynamic analysis must be a separate opt-in command and execution service. A

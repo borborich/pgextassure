@@ -1,0 +1,99 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/evidence-signature-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "created_on": {
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "type": "string"
+    },
+    "evidence": {
+      "additionalProperties": false,
+      "properties": {
+        "coverage_digest": {"$ref": "#/$defs/digest"},
+        "gate": {"enum": ["pass", "blocked"]},
+        "manifest_digest": {"$ref": "#/$defs/digest"},
+        "policy_digest": {
+          "anyOf": [
+            {"$ref": "#/$defs/digest"},
+            {"type": "null"}
+          ]
+        },
+        "schema_version": {"const": "1.0"}
+      },
+      "required": [
+        "schema_version",
+        "gate",
+        "manifest_digest",
+        "coverage_digest",
+        "policy_digest"
+      ],
+      "type": "object"
+    },
+    "schema_version": {"const": "1.0"},
+    "signature": {
+      "additionalProperties": false,
+      "properties": {
+        "profile": {"const": "rsa-pss-sha256"},
+        "public_key": {
+          "additionalProperties": false,
+          "properties": {
+            "algorithm": {"const": "RSA"},
+            "bits": {"minimum": 3072, "type": "integer"},
+            "format": {"const": "SubjectPublicKeyInfo"},
+            "sha256": {"$ref": "#/$defs/digest"}
+          },
+          "required": ["algorithm", "bits", "format", "sha256"],
+          "type": "object"
+        }
+      },
+      "required": ["profile", "public_key"],
+      "type": "object"
+    },
+    "signer": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {"maxLength": 256, "minLength": 1, "type": "string"}
+      },
+      "required": ["id"],
+      "type": "object"
+    },
+    "statement_type": {
+      "const": "pgextassure.corporate-evidence-signature"
+    },
+    "subject": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {"$ref": "#/$defs/digest"},
+        "media_type": {
+          "const": "application/vnd.pgextassure.evidence+zip"
+        },
+        "size": {
+          "maximum": 67108864,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": ["media_type", "size", "digest"],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "statement_type",
+    "signature",
+    "signer",
+    "created_on",
+    "subject",
+    "evidence"
+  ],
+  "title": "PgExtAssure corporate evidence signature 1.0",
+  "type": "object"
+}
