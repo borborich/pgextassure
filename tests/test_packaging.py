@@ -96,6 +96,10 @@ class PackagingContractTests(unittest.TestCase):
             wheel_files,
         )
         self.assertIn(
+            "pgextassure/schemas/gateway-error-1.0.schema.json",
+            wheel_files,
+        )
+        self.assertIn(
             "pgextassure/policies/adoption.json",
             wheel_files,
         )

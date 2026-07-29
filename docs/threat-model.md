@@ -117,6 +117,30 @@ private-key material outside the staging directory. Receiving systems must
 obtain the package digest, release provenance, signer fingerprint, Trust
 Policy digest, and request context through appropriate independent channels.
 
+The Admission Gateway exposes that offline verification boundary over HTTP.
+Its default trust boundary is the local loopback interface. A non-loopback
+bind is an explicit deployment choice and does not add transport encryption,
+client authentication, authorization, or rate limiting. Remote deployments
+must provide those controls in an organization-owned reverse proxy, service
+mesh, or equivalent trusted ingress. The gateway has no outbound network
+client and never extracts or executes the submitted package.
+
+The gateway rejects chunked transfer encoding, duplicate security-critical
+headers, malformed or unbounded content lengths, oversized bodies, and
+control-bearing metadata. It bounds active request threads and per-connection
+read time, streams the body into a private temporary file, verifies its digest,
+and deletes it after the request. These controls reduce request-smuggling and
+resource-exhaustion exposure but do not make the Python HTTP server an
+Internet-facing security boundary.
+
+The gateway's SQLite ledger binds an idempotency key and `(request ID, target)`
+to exact package and Admission Event bytes on one trusted host. SQLite, the
+ledger directory, local filesystem, operating system, and host administrator
+are inside this trust boundary. A host compromise, rollback or deletion of the
+ledger, coordinated multi-writer deployment, and cross-region uniqueness are
+outside it. Deploy one writer per ledger and use an organization-owned
+consistent uniqueness service when a decision must span nodes or regions.
+
 ## Threats the static MVP can surface
 
 Subject to the implemented rules and parser coverage, reports may surface:

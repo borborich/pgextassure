@@ -21,7 +21,8 @@ Current contracts:
 - Admission Receipt `1.0`;
 - Enterprise Pilot Package manifest `1.0`;
 - Enterprise Admission Event `1.0`;
-- Integration Export Manifest `1.0`.
+- Integration Export Manifest `1.0`;
+- Admission Gateway Error `1.0`.
 
 Agent Review Pack `1.0` is described by
 [`agent-review-pack-1.0.schema.json`](../schemas/agent-review-pack-1.0.schema.json).
@@ -70,6 +71,11 @@ Integration Export Manifest `1.0` is described by
 [`integration-export-1.0.schema.json`](../schemas/integration-export-1.0.schema.json).
 It binds a vendor-specific HTTP payload to its exact Admission Event, profile,
 request path, media type, byte length, and SHA-256 digest.
+
+Admission Gateway Error `1.0` is described by
+[`gateway-error-1.0.schema.json`](../schemas/gateway-error-1.0.schema.json).
+Active and inactive admission responses use Admission Event `1.0`; only HTTP
+request, replay, capacity, integrity, and internal failures use this contract.
 
 ## Coverage inventory
 
