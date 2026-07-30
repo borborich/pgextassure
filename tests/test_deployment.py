@@ -65,6 +65,15 @@ class GatewayDeploymentTests(unittest.TestCase):
         self.assertIn("subject-digest:", workflow)
         self.assertIn("sbom: true", workflow)
 
+    def test_tagged_helm_chart_is_packaged_and_attested(self) -> None:
+        workflow = (
+            PROJECT_ROOT / ".github" / "workflows" / "ci.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn('helm package "$chart"', workflow)
+        self.assertIn("name: pgextassure-helm-chart", workflow)
+        self.assertIn("helm-artifacts/*.tgz", workflow)
+        self.assertIn("- helm-chart", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

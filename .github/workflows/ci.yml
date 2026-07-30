@@ -118,6 +118,7 @@ jobs:
         run: |
           set -euo pipefail
           chart=deploy/helm/pgextassure
+          mkdir -p helm-artifacts
           helm lint "$chart" --values "$chart/ci/sqlite-values.yaml"
           helm template sqlite "$chart" \
             --values "$chart/ci/sqlite-values.yaml" \
@@ -144,6 +145,23 @@ jobs:
             echo "SQLite chart accepted multiple replicas" >&2
             exit 1
           fi
+
+          helm package "$chart" --destination helm-artifacts
+          test -f \
+            helm-artifacts/pgextassure-0.1.0-alpha.13.tgz
+          (
+            cd helm-artifacts
+            sha256sum ./*.tgz > HELM-SHA256SUMS
+            sha256sum --check HELM-SHA256SUMS
+          )
+
+      - name: Upload release-ready Helm chart
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pgextassure-helm-chart
+          path: helm-artifacts/
+          if-no-files-found: error
+          retention-days: 7
 
   distributions:
     name: Reproducible distributions
@@ -313,7 +331,9 @@ jobs:
   release-attestations:
     name: Tagged release attestations
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-    needs: distributions
+    needs:
+      - distributions
+      - helm-chart
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -328,12 +348,19 @@ jobs:
           name: pgextassure-distributions
           path: release-artifacts
 
-      - name: Attest tagged release distributions
+      - name: Download verified Helm chart
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pgextassure-helm-chart
+          path: helm-artifacts
+
+      - name: Attest tagged release artifacts
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
         with:
           subject-path: |
             release-artifacts/*.whl
             release-artifacts/*.tar.gz
+            helm-artifacts/*.tgz
 
   gateway-container:
     name: Hardened gateway container
