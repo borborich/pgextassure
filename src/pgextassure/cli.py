@@ -569,7 +569,22 @@ def _parser() -> argparse.ArgumentParser:
     )
     gateway_serve.add_argument("--host", default="127.0.0.1")
     gateway_serve.add_argument("--port", type=int, default=8080)
-    gateway_serve.add_argument("--ledger", metavar="FILE", required=True)
+    gateway_ledger = gateway_serve.add_mutually_exclusive_group(required=True)
+    gateway_ledger.add_argument(
+        "--ledger",
+        metavar="FILE",
+        help="use a private local SQLite ledger",
+    )
+    gateway_ledger.add_argument(
+        "--postgres-dsn-file",
+        metavar="FILE",
+        help="use PostgreSQL via a mode-0600 DSN secret file",
+    )
+    gateway_serve.add_argument(
+        "--initialize-postgres-ledger",
+        action="store_true",
+        help="bootstrap schema 1 before serving; requires PostgreSQL DDL rights",
+    )
     gateway_serve.add_argument(
         "--maximum-request-bytes",
         type=int,
@@ -913,7 +928,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 GatewayConfig(
                     host=arguments.host,
                     port=arguments.port,
-                    ledger_path=Path(arguments.ledger),
+                    ledger_path=(
+                        Path(arguments.ledger) if arguments.ledger else None
+                    ),
+                    postgres_dsn_file=(
+                        Path(arguments.postgres_dsn_file)
+                        if arguments.postgres_dsn_file
+                        else None
+                    ),
+                    initialize_postgres_ledger=(
+                        arguments.initialize_postgres_ledger
+                    ),
                     maximum_request_bytes=arguments.maximum_request_bytes,
                     maximum_concurrent_requests=(
                         arguments.maximum_concurrent_requests

@@ -3,10 +3,12 @@
 The PgExtAssure Admission Gateway exposes the offline `pilot enforce` boundary
 over a small HTTP API. It accepts one complete Pilot Package, recomputes the
 Admission Event against externally supplied anchors, and persists request
-uniqueness and idempotency in a local SQLite ledger.
+uniqueness and idempotency in either a local SQLite ledger or a shared
+PostgreSQL ledger.
 
-It has no outbound network client, vendor credentials, package extraction,
-installation authority, or extension execution.
+It has no vendor credentials, package extraction, installation authority, or
+extension execution. SQLite mode makes no outbound connection. PostgreSQL mode
+connects only to the database named by the operator-supplied DSN.
 
 ## Start locally
 
@@ -30,6 +32,42 @@ enforces mTLS/authentication, request-size limits, and network policy.
 The ledger is created with mode `0600`. Existing ledgers granting group or
 other access, symlink ledgers, and symlinked ledger directories are rejected.
 
+## Shared PostgreSQL ledger
+
+Use PostgreSQL when two or more gateway processes must share one global
+idempotency boundary. Install the explicit optional dependency:
+
+```bash
+python -m pip install 'pgextassure[postgres]'
+```
+
+Provision schema 1 with [`deploy/postgres-ledger.sql`](../deploy/postgres-ledger.sql)
+under a migration/owner role. Alternatively, a controlled first boot can add
+`--initialize-postgres-ledger`; do not retain DDL rights on the runtime role.
+The runtime role needs only `SELECT` on `pgextassure_ledger_metadata` and
+`SELECT, INSERT` on `pgextassure_admissions`.
+
+Write the libpq connection string to a dedicated secret file. The DSN is never
+accepted as a command-line value and is not logged:
+
+```bash
+install -m 600 /dev/null gateway-state/postgres.dsn
+printf '%s\n' \
+  'postgresql://pgextassure_runtime:REDACTED@db.internal/assurance?sslmode=verify-full' \
+  > gateway-state/postgres.dsn
+
+pgextassure gateway serve \
+  --host 127.0.0.1 \
+  --port 8080 \
+  --postgres-dsn-file gateway-state/postgres.dsn
+```
+
+The DSN file and every directory in its path must be regular, non-symlinked,
+and the file must grant no group or other access. Use a dedicated database,
+least-privilege runtime role, server identity verification, encrypted
+connections, encrypted backups, and PostgreSQL high availability appropriate
+to the admission boundary.
+
 For the rootless container, Compose and Kubernetes profiles, see
 [Admission Gateway deployment](gateway-deployment.md).
 
@@ -41,7 +79,7 @@ Reports process liveness.
 
 ### `GET /readyz`
 
-Returns ready only when the SQLite ledger can be queried.
+Returns ready only when the selected ledger and schema version can be queried.
 
 ### `POST /v1/admissions`
 
@@ -114,6 +152,9 @@ The ledger uniquely binds `(request ID, target)` and the idempotency key.
 - Stored event bytes are authenticated by a retained SHA-256 before replay.
 - Failed integrity/cryptographic requests do not reserve request context.
 
-The ledger is an operational control, not a distributed consensus system.
-Run one writer per ledger. Multi-region deployments require an
-organization-owned globally consistent request-uniqueness service.
+SQLite supports one gateway writer per ledger. PostgreSQL uses transaction
+advisory locks plus database uniqueness constraints, so multiple gateway
+instances connected to the same primary execute one admission operation and
+return byte-identical replay results. Do not use asynchronous replicas as
+writable ledgers. Cross-region deployments must preserve a single strongly
+consistent write boundary.

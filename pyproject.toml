@@ -28,6 +28,9 @@ classifiers = [
   "Topic :: Security",
 ]
 
+[project.optional-dependencies]
+postgres = ["psycopg[binary]==3.3.4"]
+
 [project.urls]
 Homepage = "https://github.com/borborich/pgextassure"
 Repository = "https://github.com/borborich/pgextassure"

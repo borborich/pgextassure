@@ -47,6 +47,49 @@ jobs:
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
 
+  postgres-ledger:
+    name: PostgreSQL ledger concurrency
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16.13-bookworm@sha256:472efd9a66f2b2f1a5aeb18b28de74332e6ef88c2b93a1a5d812fb6db67a5f60
+        env:
+          POSTGRES_DB: pgextassure
+          POSTGRES_USER: pgextassure
+          POSTGRES_PASSWORD: integration-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pgextassure -d pgextassure"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install PostgreSQL gateway extra
+        run: python -m pip install -e ".[postgres]"
+
+      - name: Run two-instance concurrency contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          dsn_file="$RUNNER_TEMP/postgres.dsn"
+          printf '%s\n' \
+            'postgresql://pgextassure:integration-only@127.0.0.1:5432/pgextassure' \
+            > "$dsn_file"
+          chmod 0600 "$dsn_file"
+          PGEXTASSURE_TEST_POSTGRES_DSN_FILE="$dsn_file" \
+            python -m unittest tests.test_postgres_gateway -v
+
   distributions:
     name: Reproducible distributions
     runs-on: ubuntu-latest

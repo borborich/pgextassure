@@ -37,6 +37,11 @@ COPY . /opt/pgextassure/source
 
 RUN python -m pip install \
         --no-cache-dir \
+        --require-hashes \
+        --only-binary=:all: \
+        --requirement /opt/pgextassure/source/docker/postgres-requirements.txt \
+    && python -m pip install \
+        --no-cache-dir \
         --no-deps \
         /opt/pgextassure/source \
     && install \

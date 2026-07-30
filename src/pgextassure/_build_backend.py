@@ -59,6 +59,8 @@ def _metadata() -> bytes:
         "Project-URL: Issues, https://github.com/borborich/pgextassure/issues\n"
         "Project-URL: Security Policy, "
         "https://github.com/borborich/pgextassure/security/policy\n"
+        "Provides-Extra: postgres\n"
+        'Requires-Dist: psycopg[binary] (==3.3.4) ; extra == "postgres"\n'
         "Description-Content-Type: text/markdown\n"
         "\n"
     )

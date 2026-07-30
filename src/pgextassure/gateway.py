@@ -17,7 +17,7 @@ import sqlite3
 import stat
 import tempfile
 import threading
-from typing import Any
+from typing import Any, Callable, Protocol
 
 from .enterprise import (
     AdmissionEnforcementError,
@@ -58,7 +58,9 @@ class GatewayLedgerError(GatewayError):
 class GatewayConfig:
     host: str
     port: int
-    ledger_path: Path
+    ledger_path: Path | None = None
+    postgres_dsn_file: Path | None = None
+    initialize_postgres_ledger: bool = False
     maximum_request_bytes: int = MAX_PILOT_PACKAGE_BYTES
     maximum_concurrent_requests: int = 4
     request_timeout_seconds: int = 30
@@ -70,6 +72,22 @@ class LedgerResult:
     event: bytes
     status_code: int
     replayed: bool
+
+
+class Ledger(Protocol):
+    """Persistence boundary shared by local and distributed gateways."""
+
+    def ready(self) -> bool: ...
+
+    def execute(
+        self,
+        *,
+        idempotency_key: str,
+        request_id: str,
+        target: str,
+        package_digest: str,
+        operation: Callable[[], tuple[bytes, int]],
+    ) -> LedgerResult: ...
 
 
 def _json_bytes(value: Any) -> bytes:
@@ -157,6 +175,38 @@ def _safe_ledger_path(path: str | os.PathLike[str]) -> Path:
     return absolute
 
 
+def _safe_secret_file(path: str | os.PathLike[str]) -> Path:
+    target = Path(os.path.abspath(Path(path)))
+    current = Path(target.anchor)
+    for part in target.parts[1:-1]:
+        current /= part
+        try:
+            current_stat = current.lstat()
+        except OSError as error:
+            raise GatewayError(
+                f"cannot inspect PostgreSQL DSN directory {current}: {error}"
+            ) from error
+        if stat.S_ISLNK(current_stat.st_mode):
+            raise GatewayError(
+                "PostgreSQL DSN directory must not contain symlinks"
+            )
+        if not stat.S_ISDIR(current_stat.st_mode):
+            raise GatewayError("PostgreSQL DSN parent is not a directory")
+    try:
+        target_stat = target.lstat()
+    except OSError as error:
+        raise GatewayError(f"cannot inspect PostgreSQL DSN file: {error}") from error
+    if stat.S_ISLNK(target_stat.st_mode) or not stat.S_ISREG(target_stat.st_mode):
+        raise GatewayError(
+            "PostgreSQL DSN file must be a regular non-symlink file"
+        )
+    if target_stat.st_mode & 0o077:
+        raise GatewayError(
+            "PostgreSQL DSN file permissions must not grant group or other access"
+        )
+    return target
+
+
 def validate_gateway_config(config: GatewayConfig) -> GatewayConfig:
     """Validate bounded server configuration and ledger placement."""
 
@@ -181,10 +231,32 @@ def validate_gateway_config(config: GatewayConfig) -> GatewayConfig:
         or not 1 <= config.request_timeout_seconds <= 300
     ):
         raise GatewayError("request timeout must be between 1 and 300 seconds")
+    if (config.ledger_path is None) == (config.postgres_dsn_file is None):
+        raise GatewayError(
+            "configure exactly one ledger: SQLite file or PostgreSQL DSN file"
+        )
+    if (
+        type(config.initialize_postgres_ledger) is not bool
+        or config.initialize_postgres_ledger
+        and config.postgres_dsn_file is None
+    ):
+        raise GatewayError(
+            "PostgreSQL ledger initialization requires a PostgreSQL DSN file"
+        )
     return GatewayConfig(
         host=config.host,
         port=config.port,
-        ledger_path=_safe_ledger_path(config.ledger_path),
+        ledger_path=(
+            _safe_ledger_path(config.ledger_path)
+            if config.ledger_path is not None
+            else None
+        ),
+        postgres_dsn_file=(
+            _safe_secret_file(config.postgres_dsn_file)
+            if config.postgres_dsn_file is not None
+            else None
+        ),
+        initialize_postgres_ledger=config.initialize_postgres_ledger,
         maximum_request_bytes=config.maximum_request_bytes,
         maximum_concurrent_requests=config.maximum_concurrent_requests,
         request_timeout_seconds=config.request_timeout_seconds,
@@ -203,7 +275,7 @@ def is_loopback_host(host: str) -> bool:
         return False
 
 
-class AdmissionLedger:
+class SQLiteAdmissionLedger:
     """SQLite uniqueness and idempotency boundary for admission requests."""
 
     def __init__(self, path: Path) -> None:
@@ -275,7 +347,7 @@ class AdmissionLedger:
         request_id: str,
         target: str,
         package_digest: str,
-        operation: Any,
+        operation: Callable[[], tuple[bytes, int]],
     ) -> LedgerResult:
         connection = self._connect()
         try:
@@ -356,6 +428,281 @@ class AdmissionLedger:
             connection.close()
 
 
+# Backwards-compatible public name for the alpha12 local ledger.
+AdmissionLedger = SQLiteAdmissionLedger
+
+
+def _advisory_lock_key(value: str) -> int:
+    raw = hashlib.sha256(value.encode("utf-8")).digest()[:8]
+    return int.from_bytes(raw, byteorder="big", signed=True)
+
+
+def _read_postgres_dsn(path: Path) -> str:
+    try:
+        raw = path.read_bytes()
+    except OSError as error:
+        raise GatewayError(f"cannot read PostgreSQL DSN file: {error}") from error
+    if not raw or len(raw) > 4096:
+        raise GatewayError("PostgreSQL DSN file must contain 1 to 4096 bytes")
+    if raw.endswith(b"\n"):
+        raw = raw[:-1]
+    try:
+        dsn = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as error:
+        raise GatewayError("PostgreSQL DSN file must be UTF-8") from error
+    if not dsn or any(character in dsn for character in "\x00\r\n"):
+        raise GatewayError("PostgreSQL DSN file must contain one non-empty line")
+    return dsn
+
+
+class PostgreSQLAdmissionLedger:
+    """Globally consistent admission ledger backed by PostgreSQL."""
+
+    _SCHEMA_LOCK = 0x5047455854415353
+
+    def __init__(
+        self,
+        dsn_file: Path,
+        *,
+        connect: Callable[..., Any] | None = None,
+        initialize: bool = False,
+    ) -> None:
+        self.dsn_file = dsn_file
+        self._dsn = _read_postgres_dsn(dsn_file)
+        self._connect_function = connect or self._load_connect()
+        if initialize:
+            self._initialize()
+        self._validate_schema()
+
+    @staticmethod
+    def _load_connect() -> Callable[..., Any]:
+        try:
+            import psycopg
+        except ImportError as error:
+            raise GatewayError(
+                "PostgreSQL ledger requires the 'postgres' installation extra"
+            ) from error
+        return psycopg.connect
+
+    def _connect(self) -> Any:
+        try:
+            return self._connect_function(self._dsn)
+        except Exception as error:
+            raise GatewayLedgerError(
+                "cannot connect to PostgreSQL ledger"
+            ) from error
+
+    @staticmethod
+    def _rollback(connection: Any) -> None:
+        try:
+            connection.rollback()
+        except Exception:
+            pass
+
+    def _initialize(self) -> None:
+        connection = self._connect()
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                "SELECT pg_advisory_xact_lock(%s)",
+                (self._SCHEMA_LOCK,),
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS pgextassure_ledger_metadata (
+                    singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+                    schema_version INTEGER NOT NULL
+                )
+                """
+            )
+            cursor.execute(
+                """
+                INSERT INTO pgextassure_ledger_metadata (
+                    singleton, schema_version
+                ) VALUES (TRUE, 1)
+                ON CONFLICT (singleton) DO NOTHING
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS pgextassure_admissions (
+                    idempotency_key TEXT PRIMARY KEY,
+                    request_id TEXT NOT NULL,
+                    target TEXT NOT NULL,
+                    package_digest TEXT NOT NULL,
+                    event_json BYTEA NOT NULL,
+                    event_sha256 TEXT NOT NULL,
+                    status_code INTEGER NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (request_id, target)
+                )
+                """
+            )
+            connection.commit()
+        except Exception as error:
+            self._rollback(connection)
+            raise GatewayLedgerError(
+                "cannot initialize PostgreSQL ledger"
+            ) from error
+        finally:
+            connection.close()
+
+    def _validate_schema(self) -> None:
+        connection = self._connect()
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                SELECT schema_version
+                FROM pgextassure_ledger_metadata
+                WHERE singleton = TRUE
+                """
+            )
+            if cursor.fetchone() != (1,):
+                raise GatewayLedgerError(
+                    "unsupported PostgreSQL ledger schema version"
+                )
+            cursor.execute(
+                """
+                SELECT idempotency_key, request_id, target, package_digest,
+                       event_json, event_sha256, status_code
+                FROM pgextassure_admissions
+                WHERE FALSE
+                """
+            )
+            connection.rollback()
+        except GatewayLedgerError:
+            self._rollback(connection)
+            raise
+        except Exception as error:
+            self._rollback(connection)
+            raise GatewayLedgerError(
+                "PostgreSQL ledger schema is not initialized"
+            ) from error
+        finally:
+            connection.close()
+
+    def ready(self) -> bool:
+        try:
+            connection = self._connect()
+            try:
+                row = connection.cursor().execute(
+                    """
+                    SELECT schema_version
+                    FROM pgextassure_ledger_metadata
+                    WHERE singleton = TRUE
+                      AND to_regclass('pgextassure_admissions') IS NOT NULL
+                    """
+                ).fetchone()
+                return row == (1,)
+            finally:
+                connection.close()
+        except Exception:
+            return False
+
+    def execute(
+        self,
+        *,
+        idempotency_key: str,
+        request_id: str,
+        target: str,
+        package_digest: str,
+        operation: Callable[[], tuple[bytes, int]],
+    ) -> LedgerResult:
+        connection = self._connect()
+        try:
+            cursor = connection.cursor()
+            lock_keys = sorted(
+                {
+                    _advisory_lock_key(f"idempotency:{idempotency_key}"),
+                    _advisory_lock_key(f"context:{request_id}\0{target}"),
+                }
+            )
+            for lock_key in lock_keys:
+                cursor.execute(
+                    "SELECT pg_advisory_xact_lock(%s)",
+                    (lock_key,),
+                )
+            cursor.execute(
+                """
+                SELECT request_id, target, package_digest, event_json,
+                       event_sha256, status_code
+                FROM pgextassure_admissions
+                WHERE idempotency_key = %s
+                """,
+                (idempotency_key,),
+            )
+            existing = cursor.fetchone()
+            if existing is not None:
+                if existing[:3] != (request_id, target, package_digest):
+                    raise GatewayConflict(
+                        "idempotency key is already bound to another request"
+                    )
+                event = bytes(existing[3])
+                event_digest = "sha256:" + hashlib.sha256(event).hexdigest()
+                if event_digest != existing[4]:
+                    raise GatewayLedgerError(
+                        "stored Admission Event failed ledger integrity check"
+                    )
+                connection.commit()
+                return LedgerResult(
+                    event=event,
+                    status_code=int(existing[5]),
+                    replayed=True,
+                )
+            cursor.execute(
+                """
+                SELECT idempotency_key
+                FROM pgextassure_admissions
+                WHERE request_id = %s AND target = %s
+                """,
+                (request_id, target),
+            )
+            if cursor.fetchone() is not None:
+                raise GatewayConflict(
+                    "request ID and target were already admitted "
+                    "under another idempotency key"
+                )
+            event, status_code = operation()
+            cursor.execute(
+                """
+                INSERT INTO pgextassure_admissions (
+                    idempotency_key,
+                    request_id,
+                    target,
+                    package_digest,
+                    event_json,
+                    event_sha256,
+                    status_code
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    idempotency_key,
+                    request_id,
+                    target,
+                    package_digest,
+                    event,
+                    "sha256:" + hashlib.sha256(event).hexdigest(),
+                    status_code,
+                ),
+            )
+            connection.commit()
+            return LedgerResult(
+                event=event,
+                status_code=status_code,
+                replayed=False,
+            )
+        except (GatewayError, AdmissionEnforcementError):
+            self._rollback(connection)
+            raise
+        except Exception as error:
+            self._rollback(connection)
+            raise GatewayLedgerError(
+                "PostgreSQL ledger operation failed"
+            ) from error
+        finally:
+            connection.close()
+
 class _GatewayServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = False
@@ -364,7 +711,7 @@ class _GatewayServer(ThreadingHTTPServer):
         self,
         address: tuple[str, int],
         config: GatewayConfig,
-        ledger: AdmissionLedger,
+        ledger: Ledger,
     ) -> None:
         self.config = config
         self.ledger = ledger
@@ -628,7 +975,15 @@ def create_gateway_server(config: GatewayConfig) -> ThreadingHTTPServer:
     """Create an initialized gateway server without starting its loop."""
 
     validated = validate_gateway_config(config)
-    ledger = AdmissionLedger(validated.ledger_path)
+    ledger: Ledger
+    if validated.ledger_path is not None:
+        ledger = SQLiteAdmissionLedger(validated.ledger_path)
+    else:
+        assert validated.postgres_dsn_file is not None
+        ledger = PostgreSQLAdmissionLedger(
+            validated.postgres_dsn_file,
+            initialize=validated.initialize_postgres_ledger,
+        )
     return _GatewayServer(
         (validated.host, validated.port),
         validated,
