@@ -6,6 +6,15 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Self-service `pilot accept` runner for offline package enforcement, TLS 1.3
+  readiness, negative mTLS/TLS 1.2 checks, first admission, and byte-identical
+  replay without Kubernetes access or a manual demo.
+- Closed Pilot Acceptance Report `1.0` with ordered pass/fail/not-run checks,
+  canonical bytes, hashed idempotency and mTLS certificate identities, and no
+  TLS secret paths.
+
 ## [0.1.0-alpha.13] - 2026-07-30
 
 ### Added

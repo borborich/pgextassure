@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
-from typing import Sequence
+from typing import Any, Sequence
 
 from .admission import (
     AdmissionError,
@@ -19,6 +19,10 @@ from .admission import (
     load_suppressions,
     parse_admission_date,
     render_baseline,
+)
+from .acceptance import (
+    PilotAcceptanceConfigurationError,
+    run_pilot_acceptance,
 )
 from .evidence import (
     BUNDLE_SCHEMA_VERSION,
@@ -509,6 +513,81 @@ def _parser() -> argparse.ArgumentParser:
         default="text",
         dest="output_format",
     )
+    pilot_accept = pilot_commands.add_parser(
+        "accept",
+        help="run the closed TLS 1.3/mTLS enterprise acceptance contract",
+    )
+    pilot_accept.add_argument("path", metavar="PACKAGE")
+    pilot_accept.add_argument(
+        "--gateway-url",
+        metavar="HTTPS_ORIGIN",
+        required=True,
+    )
+    pilot_accept.add_argument(
+        "--ca-certificate",
+        metavar="FILE",
+        required=True,
+    )
+    pilot_accept.add_argument(
+        "--client-certificate",
+        metavar="FILE",
+        required=True,
+    )
+    pilot_accept.add_argument(
+        "--client-key",
+        metavar="FILE",
+        required=True,
+    )
+    pilot_accept.add_argument(
+        "--expected-package-sha256",
+        metavar="sha256:DIGEST",
+        required=True,
+    )
+    pilot_accept.add_argument(
+        "--expected-key-sha256",
+        metavar="sha256:DIGEST",
+        required=True,
+    )
+    pilot_accept.add_argument(
+        "--expected-trust-policy-sha256",
+        metavar="sha256:DIGEST",
+        required=True,
+    )
+    pilot_accept.add_argument("--expected-request-id", required=True)
+    pilot_accept.add_argument("--expected-target", required=True)
+    pilot_accept.add_argument(
+        "--expected-evaluated-on",
+        metavar="YYYY-MM-DD",
+        required=True,
+    )
+    pilot_accept.add_argument(
+        "--verified-on",
+        metavar="YYYY-MM-DD",
+        help="acceptance date; defaults to the current UTC date",
+    )
+    pilot_accept.add_argument(
+        "--idempotency-key",
+        required=True,
+    )
+    pilot_accept.add_argument(
+        "--timeout-seconds",
+        metavar="SECONDS",
+        type=int,
+        default=10,
+    )
+    pilot_accept.add_argument("--openssl", metavar="FILE")
+    pilot_accept.add_argument(
+        "--output",
+        metavar="FILE",
+        required=True,
+        help="write the canonical Pilot Acceptance Report 1.0 JSON",
+    )
+    pilot_accept.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
+    )
     integration = subcommands.add_parser(
         "integration",
         help="project a verified Admission Event into a vendor API payload",
@@ -894,6 +973,25 @@ def _render_pilot_summary(summary: dict[str, object]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _render_acceptance_summary(document: dict[str, Any]) -> str:
+    checks = document["checks"]
+    assert isinstance(checks, list)
+    lines = [
+        "PgExtAssure Pilot Acceptance Report 1.0: "
+        + ("accepted" if document["accepted"] else "rejected"),
+        f"Gateway: {document['gateway']['origin']}",
+        f"Package: {document['package']['digest']}",
+    ]
+    for check in checks:
+        lines.append(
+            f"{check['status'].upper():7} {check['id']}: {check['code']}"
+        )
+    event = document["event"]
+    if isinstance(event, dict):
+        lines.append(f"Event ID: {event['id']}")
+    return "\n".join(lines) + "\n"
+
+
 def _silence_broken_stdout() -> None:
     """Prevent Python's shutdown flush from replacing the intended exit code."""
 
@@ -1195,6 +1293,81 @@ def main(argv: Sequence[str] | None = None) -> int:
         except OSError as error:
             print(
                 "pgextassure: cannot write output: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+
+    if arguments.command == "pilot" and arguments.pilot_command == "accept":
+        try:
+            expected_evaluated_on = parse_admission_date(
+                arguments.expected_evaluated_on,
+                label="pilot expected_evaluated_on",
+            )
+            verified_on = (
+                parse_admission_date(
+                    arguments.verified_on,
+                    label="pilot verified_on",
+                )
+                if arguments.verified_on
+                else datetime.now(timezone.utc).date()
+            )
+            protected_paths = {
+                os.path.abspath(arguments.path),
+                os.path.abspath(arguments.ca_certificate),
+                os.path.abspath(arguments.client_certificate),
+                os.path.abspath(arguments.client_key),
+            }
+            if arguments.openssl:
+                protected_paths.add(os.path.abspath(arguments.openssl))
+            if os.path.abspath(arguments.output) in protected_paths:
+                raise PilotAcceptanceConfigurationError(
+                    "acceptance report output must not overwrite an input"
+                )
+            acceptance = run_pilot_acceptance(
+                arguments.path,
+                gateway_url=arguments.gateway_url,
+                ca_certificate_path=arguments.ca_certificate,
+                client_certificate_path=arguments.client_certificate,
+                client_key_path=arguments.client_key,
+                expected_package_sha256=arguments.expected_package_sha256,
+                expected_public_key_sha256=arguments.expected_key_sha256,
+                expected_trust_policy_sha256=(
+                    arguments.expected_trust_policy_sha256
+                ),
+                expected_request_id=arguments.expected_request_id,
+                expected_target=arguments.expected_target,
+                expected_evaluated_on=expected_evaluated_on,
+                verified_on=verified_on,
+                idempotency_key=arguments.idempotency_key,
+                timeout_seconds=arguments.timeout_seconds,
+                openssl_path=arguments.openssl,
+            )
+            _write_binary_output(arguments.output, acceptance.report)
+            rendered = (
+                acceptance.report.decode("utf-8")
+                if arguments.output_format == "json"
+                else _render_acceptance_summary(acceptance.document)
+            )
+            sys.stdout.write(rendered)
+            sys.stdout.flush()
+            return EXIT_OK if acceptance.accepted else EXIT_FINDINGS
+        except (
+            AdmissionError,
+            PilotAcceptanceConfigurationError,
+        ) as error:
+            print(
+                "pgextassure: pilot acceptance: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+        except BrokenPipeError:
+            _silence_broken_stdout()
+            return EXIT_OK if acceptance.accepted else EXIT_FINDINGS
+        except OSError as error:
+            print(
+                "pgextassure: cannot write acceptance report: "
                 f"{sanitize_terminal_text(error)}",
                 file=sys.stderr,
             )

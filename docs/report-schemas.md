@@ -22,7 +22,8 @@ Current contracts:
 - Enterprise Pilot Package manifest `1.0`;
 - Enterprise Admission Event `1.0`;
 - Integration Export Manifest `1.0`;
-- Admission Gateway Error `1.0`.
+- Admission Gateway Error `1.0`;
+- Pilot Acceptance Report `1.0`.
 
 Agent Review Pack `1.0` is described by
 [`agent-review-pack-1.0.schema.json`](../schemas/agent-review-pack-1.0.schema.json).
@@ -76,6 +77,13 @@ Admission Gateway Error `1.0` is described by
 [`gateway-error-1.0.schema.json`](../schemas/gateway-error-1.0.schema.json).
 Active and inactive admission responses use Admission Event `1.0`; only HTTP
 request, replay, capacity, integrity, and internal failures use this contract.
+
+Pilot Acceptance Report `1.0` is described by
+[`pilot-acceptance-report-1.0.schema.json`](../schemas/pilot-acceptance-report-1.0.schema.json).
+It retains six ordered offline, TLS 1.3/mTLS, admission, and exact-replay checks
+plus exact CA, client-certificate, and observed server-certificate digests,
+without recording private-key material, secret paths, or the raw idempotency
+key.
 
 ## Coverage inventory
 

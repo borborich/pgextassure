@@ -71,6 +71,10 @@ to the admission boundary.
 For the rootless container, Compose and Kubernetes profiles, see
 [Admission Gateway deployment](gateway-deployment.md).
 
+For an end-to-end receiving-organization test of the deployed TLS 1.3/mTLS
+boundary, offline trust anchors, first admission, and exact replay, run the
+[self-service pilot acceptance command](pilot-acceptance.md).
+
 ## Endpoints
 
 ### `GET /healthz`

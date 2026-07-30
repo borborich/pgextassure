@@ -62,3 +62,9 @@ The next integration boundary is the one-shot
 sub-action. They bind the complete package to out-of-band trust anchors,
 recompute its signature and receipt, and emit Admission Event 1.0 for CI,
 Jira, ServiceNow, or SIEM ingestion.
+
+For a no-meeting customer handoff, use the
+[self-service pilot acceptance runner](pilot-acceptance.md). One command
+verifies the package offline, proves the deployed TLS 1.3/mTLS boundary,
+performs the first admission, verifies byte-identical replay, and writes a
+closed canonical report for the receiving security team.
