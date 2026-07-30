@@ -54,7 +54,7 @@ GitHub Sigstore build-provenance attestation. Verify the image before use:
 
 ```bash
 gh attestation verify \
-  oci://ghcr.io/borborich/pgextassure:0.1.0-alpha.14 \
+  oci://ghcr.io/borborich/pgextassure:0.1.0-alpha.15 \
   --repo borborich/pgextassure
 ```
 

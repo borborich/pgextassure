@@ -148,7 +148,7 @@ jobs:
 
           helm package "$chart" --destination helm-artifacts
           test -f \
-            helm-artifacts/pgextassure-0.1.0-alpha.14.tgz
+            helm-artifacts/pgextassure-0.1.0-alpha.15.tgz
           (
             cd helm-artifacts
             sha256sum ./*.tgz > HELM-SHA256SUMS
