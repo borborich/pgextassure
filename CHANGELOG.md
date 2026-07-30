@@ -6,6 +6,12 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- Corrupt DEFLATE streams in Pilot Packages and Evidence Bundles now fail
+  closed with the documented verification exit code instead of exposing a
+  Python traceback.
+
 ## [0.1.0-alpha.14] - 2026-07-30
 
 ### Added

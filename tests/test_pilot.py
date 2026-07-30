@@ -212,6 +212,42 @@ class EnterprisePilotPackageTests(unittest.TestCase):
         self.assertEqual(3, verification.returncode)
         self.assertIn("does not match its manifest", verification.stderr)
 
+    def test_corrupt_deflate_stream_is_a_closed_verification_error(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            staging = self._staging(root)
+            package = root / "pilot.zip"
+            creation = run_cli(
+                "pilot",
+                "package",
+                str(staging),
+                "--output",
+                str(package),
+            )
+            self.assertEqual(0, creation.returncode, creation.stderr)
+            with zipfile.ZipFile(package, mode="r") as archive:
+                entry = archive.getinfo("README.md")
+            self.assertEqual(zipfile.ZIP_DEFLATED, entry.compress_type)
+            raw = bytearray(package.read_bytes())
+            payload_offset = (
+                entry.header_offset
+                + 30
+                + len(entry.filename.encode("utf-8"))
+                + len(entry.extra)
+            )
+            raw[payload_offset + (entry.compress_size // 2)] ^= 0xFF
+            package.write_bytes(raw)
+
+            verification = run_cli(
+                "pilot",
+                "verify-package",
+                str(package),
+            )
+
+        self.assertEqual(3, verification.returncode)
+        self.assertIn("cannot read pilot package entry", verification.stderr)
+        self.assertNotIn("Traceback", verification.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -103,6 +103,42 @@ class EvidenceBundleTests(unittest.TestCase):
         )
         self.assertEqual("SPDX-2.3", extracted_sbom["spdxVersion"])
 
+    def test_corrupt_deflate_stream_is_a_closed_verification_error(self) -> None:
+        with TemporaryDirectory() as directory:
+            bundle = Path(directory) / "evidence.zip"
+            creation = run_cli(
+                "evidence",
+                "create",
+                str(SAFE_ROOT),
+                "--created-on",
+                "2026-07-29",
+                "--output",
+                str(bundle),
+            )
+            self.assertEqual(0, creation.returncode, creation.stderr)
+            with zipfile.ZipFile(bundle, mode="r") as archive:
+                entry = archive.getinfo("report.json")
+            self.assertEqual(zipfile.ZIP_DEFLATED, entry.compress_type)
+            raw = bytearray(bundle.read_bytes())
+            payload_offset = (
+                entry.header_offset
+                + 30
+                + len(entry.filename.encode("utf-8"))
+                + len(entry.extra)
+            )
+            raw[payload_offset + (entry.compress_size // 2)] ^= 0xFF
+            bundle.write_bytes(raw)
+
+            verification = run_cli(
+                "evidence",
+                "verify",
+                str(bundle),
+            )
+
+        self.assertEqual(3, verification.returncode)
+        self.assertIn("cannot read evidence bundle", verification.stderr)
+        self.assertNotIn("Traceback", verification.stderr)
+
     def test_bundle_contains_inventory_and_not_source_payloads(self) -> None:
         with TemporaryDirectory() as directory:
             bundle = Path(directory) / "evidence.zip"
