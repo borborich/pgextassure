@@ -6,6 +6,8 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.15] - 2026-07-30
+
 ### Fixed
 
 - Corrupt DEFLATE streams in Pilot Packages and Evidence Bundles now fail
@@ -215,7 +217,8 @@ and releases use semantic versioning.
 - Gate-preserving broken-pipe handling and stricter `pg_temp` placement for
   recognized safe `SECURITY DEFINER` search paths.
 
-[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.14...HEAD
+[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.15...HEAD
+[0.1.0-alpha.15]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.14...v0.1.0-alpha.15
 [0.1.0-alpha.14]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.13...v0.1.0-alpha.14
 [0.1.0-alpha.13]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.12...v0.1.0-alpha.13
 [0.1.0-alpha.12]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.11...v0.1.0-alpha.12

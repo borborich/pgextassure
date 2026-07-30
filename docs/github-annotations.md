@@ -38,7 +38,7 @@ The emitted syntax follows GitHub's
 For the composite Action:
 
 ```yaml
-- uses: borborich/pgextassure@v0.1.0-alpha.14
+- uses: borborich/pgextassure@v0.1.0-alpha.15
   with:
     path: .
     format: sarif
