@@ -1,0 +1,10 @@
+{{- include "pgextassure.validate" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pgextassure.fullname" . }}-envoy
+  labels:
+    {{- include "pgextassure.labels" . | nindent 4 }}
+data:
+  envoy.yaml: |
+{{ .Files.Get "files/envoy.yaml" | indent 4 }}

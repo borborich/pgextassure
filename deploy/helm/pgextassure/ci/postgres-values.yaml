@@ -1,0 +1,17 @@
+replicaCount: 2
+image:
+  digest: sha256:1111111111111111111111111111111111111111111111111111111111111111
+ledger:
+  mode: postgres
+  postgres:
+    existingSecret: pgextassure-postgres
+mtls:
+  existingSecret: pgextassure-mtls
+networkPolicy:
+  postgresEgress:
+    - to:
+        - ipBlock:
+            cidr: 192.0.2.10/32
+      ports:
+        - protocol: TCP
+          port: 5432

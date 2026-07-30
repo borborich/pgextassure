@@ -1,0 +1,7 @@
+PgExtAssure is exposed only through mandatory mTLS on:
+
+  {{ include "pgextassure.fullname" . }}:{{ .Values.service.port }}
+
+The gateway HTTP port is bound to pod loopback and is not published by the
+Service. Verify the release image digest, TLS trust anchors, client certificate
+issuance policy, selected ledger, and NetworkPolicy before admitting traffic.

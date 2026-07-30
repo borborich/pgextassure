@@ -123,6 +123,14 @@ class PackagingContractTests(unittest.TestCase):
             sdist_paths,
         )
         self.assertIn(
+            "deploy/helm/pgextassure/Chart.yaml",
+            sdist_paths,
+        )
+        self.assertIn(
+            "deploy/helm/pgextassure/files/envoy.yaml",
+            sdist_paths,
+        )
+        self.assertIn(
             "examples/enterprise/policy.json",
             sdist_paths,
         )

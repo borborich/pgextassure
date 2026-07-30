@@ -76,6 +76,9 @@ single-writer SQLite examples. A PostgreSQL deployment sets
 the local ledger PVC requirement, permits egress only to the selected database
 endpoint, and may then run multiple replicas. Do not open general egress.
 
+For the digest-required multi-replica profile with mandatory TLS 1.3 client
+authentication, use the [reference Helm chart](helm-deployment.md).
+
 ## Kubernetes
 
 Before applying [`deploy/kubernetes.yaml`](../deploy/kubernetes.yaml):

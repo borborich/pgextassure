@@ -1,0 +1,73 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/borborich/pgextassure
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+gateway:
+  maximumRequestBytes: "268435456"
+  maximumConcurrentRequests: 4
+  requestTimeoutSeconds: 30
+  temporaryStorageSize: 300Mi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 320Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+      ephemeral-storage: 384Mi
+
+ledger:
+  mode: sqlite
+  sqlite:
+    persistence:
+      size: 1Gi
+      storageClassName: ""
+      existingClaim: ""
+  postgres:
+    existingSecret: ""
+    dsnKey: dsn
+    initialize: false
+
+mtls:
+  existingSecret: ""
+  caKey: ca.crt
+  certificateKey: tls.crt
+  privateKeyKey: tls.key
+  envoy:
+    repository: envoyproxy/envoy
+    digest: sha256:7877ad87afd7459e1bd2a077ff601fec7c93aeecd62e71664560d96328c62cf4
+    pullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+service:
+  type: ClusterIP
+  port: 8443
+  annotations: {}
+
+networkPolicy:
+  ingressFrom:
+    - podSelector:
+        matchLabels:
+          pgextassure.io/admission-client: "true"
+  postgresEgress: []
+
+podAnnotations: {}
+podLabels: {}
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
