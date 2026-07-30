@@ -12,6 +12,7 @@ import re
 import stat
 from typing import Any
 import zipfile
+import zlib
 
 from .signing import SigningError, _read_regular
 
@@ -391,7 +392,12 @@ def verify_pilot_package(
                 )
             try:
                 content = archive.read(entry)
-            except (OSError, RuntimeError, zipfile.BadZipFile) as error:
+            except (
+                OSError,
+                RuntimeError,
+                zipfile.BadZipFile,
+                zlib.error,
+            ) as error:
                 raise PilotPackageError(
                     f"cannot read pilot package entry {entry.filename!r}: {error}"
                 ) from error

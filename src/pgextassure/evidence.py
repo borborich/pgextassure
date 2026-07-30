@@ -13,6 +13,7 @@ import re
 import stat
 from typing import Any, Mapping
 import zipfile
+import zlib
 
 from .models import ScanReport
 from .source import canonical_json_bytes
@@ -556,6 +557,7 @@ def _read_bundle(path: str | os.PathLike[str]) -> dict[str, bytes]:
         OSError,
         RuntimeError,
         zipfile.BadZipFile,
+        zlib.error,
     ) as error:
         raise EvidenceError(f"cannot read evidence bundle: {error}") from error
     finally:
