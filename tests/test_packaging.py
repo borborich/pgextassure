@@ -58,6 +58,11 @@ class PackagingContractTests(unittest.TestCase):
             "https://github.com/borborich/pgextassure/security/policy\n",
             metadata,
         )
+        self.assertIn("Provides-Extra: postgres\n", metadata)
+        self.assertIn(
+            'Requires-Dist: psycopg[binary] (==3.3.4) ; extra == "postgres"\n',
+            metadata,
+        )
 
     def test_wheel_and_sdist_include_published_schemas(self) -> None:
         wheel_files = _build_backend._base_wheel_files()

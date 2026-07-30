@@ -15,7 +15,8 @@ The supplied container:
 - keeps the replay ledger on a separate persistent volume;
 - creates the immediate ledger directory with mode `0700`;
 - drops Linux capabilities and disables privilege escalation;
-- has no outbound application client and is deployed with default-deny egress;
+- has no vendor/package outbound client; optional PostgreSQL mode adds only the
+  explicitly configured ledger connection;
 - exposes liveness and readiness probes without disclosing ledger contents.
 
 The image includes the OpenSSL executable used for the existing Corporate
@@ -69,6 +70,12 @@ curl --fail http://127.0.0.1:8080/readyz
 The named volume retains idempotency and request uniqueness across container
 replacement. Removing or rolling back that volume removes those guarantees.
 
+The supplied Compose and Kubernetes manifests remain conservative
+single-writer SQLite examples. A PostgreSQL deployment sets
+`PGEXTASSURE_POSTGRES_DSN_FILE` to a mode-`0600` mounted secret file, removes
+the local ledger PVC requirement, permits egress only to the selected database
+endpoint, and may then run multiple replicas. Do not open general egress.
+
 ## Kubernetes
 
 Before applying [`deploy/kubernetes.yaml`](../deploy/kubernetes.yaml):
@@ -90,8 +97,9 @@ kubectl rollout status deployment/pgextassure-gateway
 
 The example deliberately uses one replica and `Recreate`. PgExtAssure's SQLite
 ledger is a single-writer local control. Do not scale this Deployment
-horizontally or mount one ledger into multiple writers. A multi-node or
-multi-region service needs an external, strongly consistent uniqueness layer.
+horizontally or mount one ledger into multiple writers. PostgreSQL ledger mode
+is the supported external strongly consistent uniqueness layer; its database
+availability, backup, TLS, credentials, and recovery remain operator-owned.
 
 ## Backup, recovery, and upgrade
 
@@ -115,4 +123,4 @@ requests before buffering more than the configured package boundary.
 
 Do not place private signing keys, deployment credentials, or production
 database credentials in the image, environment, ledger volume, or Pilot
-Package.
+Package. PostgreSQL credentials belong only in the private DSN secret file.

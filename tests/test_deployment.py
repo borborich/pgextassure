@@ -20,6 +20,8 @@ class GatewayDeploymentTests(unittest.TestCase):
         self.assertIn('VOLUME ["/var/lib/pgextassure"]', dockerfile)
         self.assertIn("HEALTHCHECK", dockerfile)
         self.assertIn("org.opencontainers.image.revision", dockerfile)
+        self.assertIn("--require-hashes", dockerfile)
+        self.assertIn("--only-binary=:all:", dockerfile)
         self.assertIn(
             'ENTRYPOINT ["pgextassure-gateway-entrypoint"]',
             dockerfile,

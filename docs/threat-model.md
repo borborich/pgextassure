@@ -122,8 +122,9 @@ Its default trust boundary is the local loopback interface. A non-loopback
 bind is an explicit deployment choice and does not add transport encryption,
 client authentication, authorization, or rate limiting. Remote deployments
 must provide those controls in an organization-owned reverse proxy, service
-mesh, or equivalent trusted ingress. The gateway has no outbound network
-client and never extracts or executes the submitted package.
+mesh, or equivalent trusted ingress. The gateway never extracts or executes
+the submitted package. SQLite mode has no outbound client; PostgreSQL mode
+adds only the operator-configured ledger connection.
 
 The gateway rejects chunked transfer encoding, duplicate security-critical
 headers, malformed or unbounded content lengths, oversized bodies, and
@@ -133,13 +134,15 @@ and deletes it after the request. These controls reduce request-smuggling and
 resource-exhaustion exposure but do not make the Python HTTP server an
 Internet-facing security boundary.
 
-The gateway's SQLite ledger binds an idempotency key and `(request ID, target)`
-to exact package and Admission Event bytes on one trusted host. SQLite, the
+The selected SQLite or PostgreSQL ledger binds an idempotency key and
+`(request ID, target)` to exact package and Admission Event bytes. SQLite, its
 ledger directory, local filesystem, operating system, and host administrator
-are inside this trust boundary. A host compromise, rollback or deletion of the
-ledger, coordinated multi-writer deployment, and cross-region uniqueness are
-outside it. Deploy one writer per ledger and use an organization-owned
-consistent uniqueness service when a decision must span nodes or regions.
+are inside the local trust boundary and permit one writer. PostgreSQL permits
+multiple gateway writers against one primary; its server, runtime role, TLS,
+availability, backup, and administrators are inside the distributed trust
+boundary. Host or database compromise and ledger rollback or deletion remain
+outside the control. Cross-region use must preserve one strongly consistent
+write boundary.
 
 ## Threats the static MVP can surface
 

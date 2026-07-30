@@ -6,6 +6,15 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Optional PostgreSQL Admission Gateway ledger with schema-version validation,
+  global idempotency/request-context uniqueness, transaction-scoped advisory
+  locks, and exact byte replay across multiple gateway instances.
+- Private DSN-file configuration, explicit least-privilege schema bootstrap,
+  reproducible Psycopg dependencies, and a pinned PostgreSQL concurrency CI
+  contract.
+
 ## [0.1.0-alpha.12] - 2026-07-29
 
 ### Added
