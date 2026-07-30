@@ -148,7 +148,7 @@ jobs:
 
           helm package "$chart" --destination helm-artifacts
           test -f \
-            helm-artifacts/pgextassure-0.1.0-alpha.13.tgz
+            helm-artifacts/pgextassure-0.1.0-alpha.14.tgz
           (
             cd helm-artifacts
             sha256sum ./*.tgz > HELM-SHA256SUMS
@@ -276,6 +276,7 @@ jobs:
               "$environment/bin/pgextassure" policy-template adoption \
                 --output "$policy_template"
               "$environment/bin/pgextassure" pilot --help >/dev/null
+              "$environment/bin/pgextassure" pilot accept --help >/dev/null
               "$environment/bin/pgextassure" scan tests/fixtures/safe \
                 --scope-plan tests/fixtures/scope-plan.json \
                 --format json \

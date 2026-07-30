@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 import unittest
 
+from pgextassure._version import RELEASE_VERSION
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -54,6 +56,10 @@ class GatewayDeploymentTests(unittest.TestCase):
         self.assertIn("egress: []", manifest)
         self.assertNotIn("kind: Ingress", manifest)
         self.assertNotIn("type: LoadBalancer", manifest)
+        self.assertIn(
+            f"ghcr.io/borborich/pgextassure:{RELEASE_VERSION}",
+            manifest,
+        )
 
     def test_tagged_image_is_multi_platform_and_attested(self) -> None:
         workflow = (
@@ -73,6 +79,15 @@ class GatewayDeploymentTests(unittest.TestCase):
         self.assertIn("name: pgextassure-helm-chart", workflow)
         self.assertIn("helm-artifacts/*.tgz", workflow)
         self.assertIn("- helm-chart", workflow)
+        self.assertIn(
+            f"pgextassure-{RELEASE_VERSION}.tgz",
+            workflow,
+        )
+        chart = (
+            PROJECT_ROOT / "deploy" / "helm" / "pgextassure" / "Chart.yaml"
+        ).read_text(encoding="utf-8")
+        self.assertIn(f"version: {RELEASE_VERSION}", chart)
+        self.assertIn(f'appVersion: "{RELEASE_VERSION}"', chart)
 
 
 if __name__ == "__main__":

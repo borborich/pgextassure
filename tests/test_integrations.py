@@ -48,7 +48,7 @@ class EnterpriseIntegrationProjectionTests(unittest.TestCase):
                 },
                 "tool": {
                     "name": "pgextassure",
-                    "version": "0.1.0-alpha.13",
+                    "version": "0.1.0-alpha.14",
                     "ruleset_version": "2026-07-29.6",
                 },
             },
