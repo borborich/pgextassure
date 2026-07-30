@@ -1,0 +1,73 @@
+static_resources:
+  listeners:
+    - name: mtls_ingress
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 8443
+      per_connection_buffer_limit_bytes: 32768
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: pgextassure_mtls
+                codec_type: AUTO
+                normalize_path: true
+                merge_slashes: true
+                path_with_escaped_slashes_action: REJECT_REQUEST
+                stream_idle_timeout: 35s
+                request_headers_timeout: 10s
+                max_request_headers_kb: 16
+                common_http_protocol_options:
+                  idle_timeout: 60s
+                  max_headers_count: 32
+                route_config:
+                  name: pgextassure_gateway
+                  virtual_hosts:
+                    - name: gateway
+                      domains:
+                        - "*"
+                      routes:
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: loopback_gateway
+                            timeout: 0s
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+          transport_socket:
+            name: envoy.transport_sockets.tls
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+              require_client_certificate: true
+              common_tls_context:
+                alpn_protocols:
+                  - h2
+                  - http/1.1
+                tls_params:
+                  tls_minimum_protocol_version: TLSv1_3
+                  tls_maximum_protocol_version: TLSv1_3
+                tls_certificates:
+                  - certificate_chain:
+                      filename: /etc/pgextassure-mtls/tls.crt
+                    private_key:
+                      filename: /etc/pgextassure-mtls/tls.key
+                validation_context:
+                  trusted_ca:
+                    filename: /etc/pgextassure-mtls/ca.crt
+  clusters:
+    - name: loopback_gateway
+      type: STATIC
+      connect_timeout: 1s
+      load_assignment:
+        cluster_name: loopback_gateway
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 8080

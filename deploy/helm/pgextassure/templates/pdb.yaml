@@ -1,0 +1,14 @@
+{{- include "pgextassure.validate" . }}
+{{- if and .Values.podDisruptionBudget.enabled (gt (int .Values.replicaCount) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "pgextassure.fullname" . }}
+  labels:
+    {{- include "pgextassure.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "pgextassure.selectorLabels" . | nindent 6 }}
+{{- end }}

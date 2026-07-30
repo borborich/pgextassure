@@ -90,6 +90,61 @@ jobs:
           PGEXTASSURE_TEST_POSTGRES_DSN_FILE="$dsn_file" \
             python -m unittest tests.test_postgres_gateway -v
 
+  helm-chart:
+    name: Helm mTLS deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install verified Helm
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/helm-v4.2.0-linux-amd64.tar.gz"
+          curl --fail --silent --show-error --location \
+            --output "$archive" \
+            https://get.helm.sh/helm-v4.2.0-linux-amd64.tar.gz
+          echo \
+            "97dbeb971be4ac4b27e3839976d9564c0fb35c6f3b1da89dd1e292d236af4096  $archive" \
+            | sha256sum --check
+          tar --extract --gzip --file "$archive" --directory "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/linux-amd64" >> "$GITHUB_PATH"
+
+      - name: Lint and render both ledger profiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          chart=deploy/helm/pgextassure
+          helm lint "$chart" --values "$chart/ci/sqlite-values.yaml"
+          helm template sqlite "$chart" \
+            --values "$chart/ci/sqlite-values.yaml" \
+            > "$RUNNER_TEMP/sqlite.yaml"
+          helm lint "$chart" --values "$chart/ci/postgres-values.yaml"
+          helm template postgres "$chart" \
+            --values "$chart/ci/postgres-values.yaml" \
+            > "$RUNNER_TEMP/postgres.yaml"
+
+          grep -q 'require_client_certificate: true' \
+            "$RUNNER_TEMP/sqlite.yaml"
+          grep -q 'value: 127.0.0.1' "$RUNNER_TEMP/sqlite.yaml"
+          grep -q 'replicas: 2' "$RUNNER_TEMP/postgres.yaml"
+          grep -q 'name: prepare-postgres-dsn' \
+            "$RUNNER_TEMP/postgres.yaml"
+
+          if helm template invalid "$chart" >/dev/null 2>&1; then
+            echo "chart rendered without required digest and mTLS Secret" >&2
+            exit 1
+          fi
+          if helm template invalid "$chart" \
+            --values "$chart/ci/sqlite-values.yaml" \
+            --set replicaCount=2 >/dev/null 2>&1; then
+            echo "SQLite chart accepted multiple replicas" >&2
+            exit 1
+          fi
+
   distributions:
     name: Reproducible distributions
     runs-on: ubuntu-latest
@@ -343,6 +398,9 @@ jobs:
             'test "$(stat -c %a /var/lib/pgextassure/private)" = 700'
           docker exec "$container" sh -c \
             'test "$(stat -c %a /var/lib/pgextassure/private/admissions.sqlite3)" = 600'
+
+      - name: Smoke-test mandatory mTLS ingress
+        run: integration/mtls-gateway-smoke.sh pgextassure-gateway:ci
 
   gateway-image:
     name: Tagged multi-platform gateway image

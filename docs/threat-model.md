@@ -126,6 +126,12 @@ mesh, or equivalent trusted ingress. The gateway never extracts or executes
 the submitted package. SQLite mode has no outbound client; PostgreSQL mode
 adds only the operator-configured ledger connection.
 
+The reference Helm profile supplies an Envoy sidecar that exposes only TLS 1.3,
+requires a client certificate issued by the configured CA, and forwards to a
+loopback-only gateway. The organization remains responsible for CA issuance,
+revocation, server identity, Secret protection, caller authorization, and
+network-policy enforcement.
+
 The gateway rejects chunked transfer encoding, duplicate security-critical
 headers, malformed or unbounded content lengths, oversized bodies, and
 control-bearing metadata. It bounds active request threads and per-connection

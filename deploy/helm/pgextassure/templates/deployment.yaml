@@ -1,0 +1,219 @@
+{{- include "pgextassure.validate" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pgextassure.fullname" . }}
+  labels:
+    {{- include "pgextassure.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    {{- if eq .Values.ledger.mode "sqlite" }}
+    type: Recreate
+    {{- else }}
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+    {{- end }}
+  selector:
+    matchLabels:
+      {{- include "pgextassure.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/envoy-config: {{ include (print $.Template.BasePath "/envoy-configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "pgextassure.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if eq .Values.ledger.mode "postgres" }}
+      initContainers:
+        - name: prepare-postgres-dsn
+          image: {{ include "pgextassure.gatewayImage" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              umask 077
+              cp /var/run/pgextassure-secret/dsn /var/run/pgextassure-private/postgres.dsn
+              chmod 0600 /var/run/pgextassure-private/postgres.dsn
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: postgres-dsn-source
+              mountPath: /var/run/pgextassure-secret
+              readOnly: true
+            - name: postgres-dsn-private
+              mountPath: /var/run/pgextassure-private
+      {{- end }}
+      containers:
+        - name: gateway
+          image: {{ include "pgextassure.gatewayImage" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: PGEXTASSURE_HOST
+              value: 127.0.0.1
+            - name: PGEXTASSURE_MAXIMUM_REQUEST_BYTES
+              value: {{ .Values.gateway.maximumRequestBytes | quote }}
+            - name: PGEXTASSURE_MAXIMUM_CONCURRENT_REQUESTS
+              value: {{ .Values.gateway.maximumConcurrentRequests | quote }}
+            - name: PGEXTASSURE_REQUEST_TIMEOUT_SECONDS
+              value: {{ .Values.gateway.requestTimeoutSeconds | quote }}
+            {{- if eq .Values.ledger.mode "postgres" }}
+            - name: PGEXTASSURE_POSTGRES_DSN_FILE
+              value: /var/run/pgextassure-private/postgres.dsn
+            {{- end }}
+          {{- if and (eq .Values.ledger.mode "postgres") .Values.ledger.postgres.initialize }}
+          args:
+            - --initialize-postgres-ledger
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            {{- toYaml .Values.gateway.resources | nindent 12 }}
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/readyz', timeout=2).read()"
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).read()"
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: state
+              mountPath: /var/lib/pgextassure
+            - name: gateway-temporary
+              mountPath: /tmp
+            {{- if eq .Values.ledger.mode "postgres" }}
+            - name: postgres-dsn-private
+              mountPath: /var/run/pgextassure-private
+              readOnly: true
+            {{- end }}
+        - name: mtls-ingress
+          image: {{ include "pgextassure.envoyImage" . | quote }}
+          imagePullPolicy: {{ .Values.mtls.envoy.pullPolicy }}
+          args:
+            - -c
+            - /etc/envoy/envoy.yaml
+            - --service-cluster
+            - pgextassure-mtls
+            - --log-level
+            - warning
+            - --disable-hot-restart
+          ports:
+            - name: mtls
+              containerPort: 8443
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            {{- toYaml .Values.mtls.envoy.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: mtls
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: mtls
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 2
+            failureThreshold: 3
+          volumeMounts:
+            - name: envoy-config
+              mountPath: /etc/envoy
+              readOnly: true
+            - name: mtls
+              mountPath: /etc/pgextassure-mtls
+              readOnly: true
+            - name: envoy-temporary
+              mountPath: /tmp
+      volumes:
+        - name: state
+          {{- if eq .Values.ledger.mode "sqlite" }}
+          persistentVolumeClaim:
+            claimName: {{ default (printf "%s-state" (include "pgextassure.fullname" .)) .Values.ledger.sqlite.persistence.existingClaim }}
+          {{- else }}
+          emptyDir:
+            sizeLimit: 1Mi
+          {{- end }}
+        - name: gateway-temporary
+          emptyDir:
+            sizeLimit: {{ .Values.gateway.temporaryStorageSize }}
+        - name: envoy-temporary
+          emptyDir:
+            sizeLimit: 16Mi
+        - name: envoy-config
+          configMap:
+            name: {{ include "pgextassure.fullname" . }}-envoy
+        - name: mtls
+          secret:
+            secretName: {{ .Values.mtls.existingSecret }}
+            defaultMode: 0440
+            items:
+              - key: {{ .Values.mtls.caKey }}
+                path: ca.crt
+              - key: {{ .Values.mtls.certificateKey }}
+                path: tls.crt
+              - key: {{ .Values.mtls.privateKeyKey }}
+                path: tls.key
+        {{- if eq .Values.ledger.mode "postgres" }}
+        - name: postgres-dsn-source
+          secret:
+            secretName: {{ .Values.ledger.postgres.existingSecret }}
+            defaultMode: 0440
+            items:
+              - key: {{ .Values.ledger.postgres.dsnKey }}
+                path: dsn
+        - name: postgres-dsn-private
+          emptyDir:
+            sizeLimit: 1Mi
+        {{- end }}

@@ -1,0 +1,18 @@
+{{- include "pgextassure.validate" . }}
+{{- if and (eq .Values.ledger.mode "sqlite") (empty .Values.ledger.sqlite.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "pgextassure.fullname" . }}-state
+  labels:
+    {{- include "pgextassure.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with .Values.ledger.sqlite.persistence.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.ledger.sqlite.persistence.size }}
+{{- end }}
