@@ -5,7 +5,7 @@ backend-path = ["src/pgextassure"]
 
 [project]
 name = "pgextassure"
-version = "0.1.0a12"
+version = "0.1.0a13"
 description = "Static assurance scanner for PostgreSQL extensions"
 readme = "README.md"
 requires-python = ">=3.11"

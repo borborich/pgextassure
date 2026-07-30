@@ -39,8 +39,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: gateway
-          # Pin this image to the independently verified alpha12 digest.
-          image: ghcr.io/borborich/pgextassure:0.1.0-alpha.12
+          # Replace this release tag with its independently verified digest.
+          image: ghcr.io/borborich/pgextassure:0.1.0-alpha.13
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
