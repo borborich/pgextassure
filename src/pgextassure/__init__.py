@@ -10,6 +10,11 @@ from .admission import (
     load_baseline,
     load_suppressions,
 )
+from .acceptance import (
+    PilotAcceptance,
+    PilotAcceptanceConfigurationError,
+    run_pilot_acceptance,
+)
 from .grouping import (
     FindingLocation,
     RootCauseGroup,
@@ -115,6 +120,8 @@ __all__ = [
     "IntegrationError",
     "IntegrationProjection",
     "PilotPackage",
+    "PilotAcceptance",
+    "PilotAcceptanceConfigurationError",
     "PilotPackageError",
     "PilotPackageVerification",
     "RootCauseGroup",
@@ -151,6 +158,7 @@ __all__ = [
     "load_scope_plan",
     "parse_scope_plan",
     "project_admission_event",
+    "run_pilot_acceptance",
     "scan_path",
     "sign_evidence_bundle",
     "verify_evidence_bundle",

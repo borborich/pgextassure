@@ -48,6 +48,12 @@ evidence-policy allowlists, age limits, request context, and receipt lifetime
 turn cryptographic validity into an explicit, independently recomputable
 organization decision without hiding denied evidence.
 
+It also adds a self-service enterprise acceptance runner. A receiving team can
+use its own trust anchors and mTLS identity to verify the package, TLS 1.3-only
+gateway boundary, first admission, and byte-identical ledger replay, then
+retain one closed canonical report without vendor-operated infrastructure or a
+manual demonstration.
+
 ## Isolated dynamic assurance
 
 Dynamic analysis must be a separate opt-in command and execution service. A

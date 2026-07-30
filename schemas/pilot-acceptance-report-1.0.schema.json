@@ -1,0 +1,276 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/pilot-acceptance-report-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "date": {
+      "format": "date",
+      "type": "string"
+    },
+    "digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "check": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {"status": {"const": "pass"}},
+            "required": ["status"]
+          },
+          "then": {"properties": {"code": {"const": "passed"}}}
+        },
+        {
+          "if": {
+            "properties": {"status": {"const": "not-run"}},
+            "required": ["status"]
+          },
+          "then": {"properties": {"code": {"const": "not-run"}}}
+        },
+        {
+          "if": {
+            "properties": {"status": {"const": "fail"}},
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "code": {
+                "enum": [
+                  "offline-verification-failed",
+                  "offline-admission-denied",
+                  "readiness-failed",
+                  "missing-client-certificate-accepted",
+                  "tls12-probe-unavailable",
+                  "tls12-accepted",
+                  "first-admission-failed",
+                  "replay-failed"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "passed",
+            "not-run",
+            "offline-verification-failed",
+            "offline-admission-denied",
+            "readiness-failed",
+            "missing-client-certificate-accepted",
+            "tls12-probe-unavailable",
+            "tls12-accepted",
+            "first-admission-failed",
+            "replay-failed"
+          ]
+        },
+        "id": {
+          "enum": [
+            "offline-enforcement",
+            "tls13-mtls-readiness",
+            "reject-missing-client-certificate",
+            "reject-tls12",
+            "first-admission",
+            "exact-replay"
+          ]
+        },
+        "status": {"enum": ["pass", "fail", "not-run"]}
+      },
+      "required": ["id", "status", "code"],
+      "type": "object"
+    },
+    "text": {
+      "maxLength": 512,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "accepted": {"type": "boolean"},
+    "checks": {
+      "items": false,
+      "minItems": 6,
+      "prefixItems": [
+        {
+          "allOf": [
+            {"$ref": "#/$defs/check"},
+            {"properties": {"id": {"const": "offline-enforcement"}}}
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/check"},
+            {"properties": {"id": {"const": "tls13-mtls-readiness"}}}
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/check"},
+            {
+              "properties": {
+                "id": {"const": "reject-missing-client-certificate"}
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/check"},
+            {"properties": {"id": {"const": "reject-tls12"}}}
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/check"},
+            {"properties": {"id": {"const": "first-admission"}}}
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/check"},
+            {"properties": {"id": {"const": "exact-replay"}}}
+          ]
+        }
+      ],
+      "type": "array"
+    },
+    "event": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "additionalProperties": false,
+          "properties": {
+            "digest": {"$ref": "#/$defs/digest"},
+            "id": {"$ref": "#/$defs/digest"},
+            "outcome": {"enum": ["allow", "deny"]}
+          },
+          "required": ["id", "digest", "outcome"],
+          "type": "object"
+        }
+      ]
+    },
+    "gateway": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "format": "uri",
+          "maxLength": 2048,
+          "pattern": "^https://",
+          "type": "string"
+        }
+      },
+      "required": ["origin"],
+      "type": "object"
+    },
+    "observed_on": {"$ref": "#/$defs/date"},
+    "package": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {"$ref": "#/$defs/digest"}
+      },
+      "required": ["digest"],
+      "type": "object"
+    },
+    "profile": {"const": "tls13-mtls-gateway"},
+    "report_type": {"const": "pgextassure.pilot-acceptance-report"},
+    "request": {
+      "additionalProperties": false,
+      "properties": {
+        "evaluated_on": {"$ref": "#/$defs/date"},
+        "id": {"$ref": "#/$defs/text"},
+        "idempotency_key_sha256": {"$ref": "#/$defs/digest"},
+        "target": {"$ref": "#/$defs/text"}
+      },
+      "required": [
+        "id",
+        "target",
+        "evaluated_on",
+        "idempotency_key_sha256"
+      ],
+      "type": "object"
+    },
+    "schema_version": {"const": "1.0"},
+    "transport": {
+      "additionalProperties": false,
+      "properties": {
+        "ca_certificate_sha256": {"$ref": "#/$defs/digest"},
+        "client_certificate_sha256": {"$ref": "#/$defs/digest"},
+        "protocol": {"const": "TLSv1.3"},
+        "server_certificate_sha256": {
+          "oneOf": [
+            {"$ref": "#/$defs/digest"},
+            {"type": "null"}
+          ]
+        }
+      },
+      "required": [
+        "protocol",
+        "ca_certificate_sha256",
+        "client_certificate_sha256",
+        "server_certificate_sha256"
+      ],
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"accepted": {"const": true}},
+        "required": ["accepted"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "not": {
+              "contains": {
+                "properties": {
+                  "status": {"enum": ["fail", "not-run"]}
+                },
+                "required": ["status"]
+              }
+            }
+          },
+          "event": {
+            "properties": {"outcome": {"const": "allow"}},
+            "required": ["outcome"],
+            "type": "object"
+          },
+          "transport": {
+            "properties": {
+              "server_certificate_sha256": {"$ref": "#/$defs/digest"}
+            },
+            "required": ["server_certificate_sha256"]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "checks": {
+            "contains": {
+              "properties": {"status": {"const": "fail"}},
+              "required": ["status"]
+            },
+            "minContains": 1
+          }
+        }
+      }
+    }
+  ],
+  "required": [
+    "schema_version",
+    "report_type",
+    "accepted",
+    "observed_on",
+    "profile",
+    "gateway",
+    "transport",
+    "package",
+    "request",
+    "event",
+    "checks"
+  ],
+  "title": "PgExtAssure Pilot Acceptance Report 1.0",
+  "type": "object"
+}

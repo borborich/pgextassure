@@ -243,6 +243,31 @@ The package command enforces a closed file set, release checksums, bounded
 content, flat non-symlink inputs, and private-key marker rejection. See
 [Enterprise Pilot Package 1.0](docs/pilot-packages.md).
 
+Validate both the package and a deployed TLS 1.3/mTLS Admission Gateway with
+one receiving-organization command:
+
+```bash
+pgextassure pilot accept pgextassure-enterprise-pilot.zip \
+  --gateway-url https://pgextassure-gateway.example.internal \
+  --ca-certificate gateway-ca.pem \
+  --client-certificate pilot-client.pem \
+  --client-key pilot-client-key.pem \
+  --expected-package-sha256 sha256:PACKAGE_DIGEST \
+  --expected-key-sha256 sha256:PUBLIC_KEY_FINGERPRINT \
+  --expected-trust-policy-sha256 sha256:TRUST_POLICY_DIGEST \
+  --expected-request-id CHG-2026-0042 \
+  --expected-target postgresql-prod/extension-slot-01 \
+  --expected-evaluated-on 2026-07-29 \
+  --verified-on 2026-07-29 \
+  --idempotency-key pilot-CHG-2026-0042-acceptance-01 \
+  --output pgextassure-pilot-acceptance.json
+```
+
+The runner performs offline enforcement, positive and negative TLS checks,
+first admission, and byte-identical replay, then retains a canonical
+credential-free report. See
+[Self-service pilot acceptance](docs/pilot-acceptance.md).
+
 Exit behavior is controlled by `--fail-on`:
 
 ```text
@@ -564,6 +589,7 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Enterprise pilot](docs/enterprise-pilot.md)
 - [Enterprise admission integrations](docs/enterprise-integrations.md)
 - [Admission Gateway](docs/admission-gateway.md)
+- [Self-service pilot acceptance](docs/pilot-acceptance.md)
 - [Admission Gateway deployment](docs/gateway-deployment.md)
 - [Helm deployment with mandatory mTLS](docs/helm-deployment.md)
 - [Roadmap](docs/roadmap.md)
