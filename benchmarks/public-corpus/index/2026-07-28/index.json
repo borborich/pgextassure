@@ -1,0 +1,200 @@
+{
+  "document_type": "pgextassure.public-assurance-index",
+  "latest_source_revision_date": "2026-07-26",
+  "notice": {
+    "limitations": [
+      "A completed analysis is not a claim that a project is safe.",
+      "Static analysis does not establish runtime behavior.",
+      "Capability profiles describe observed functionality, not vulnerabilities.",
+      "Finding, severity, rule, evidence, path, and source details are omitted."
+    ],
+    "no_vulnerability_disclosure": true,
+    "not_a_certification": true,
+    "not_a_security_rating": true,
+    "purpose": "Reproducible public inventory of static-analysis coverage for pinned PostgreSQL extension revisions."
+  },
+  "projects": [
+    {
+      "analysis_status": "completed",
+      "capability_profile": [
+        "database.schema-relocation",
+        "database.superuser-install"
+      ],
+      "coverage_controls": {
+        "generated_artifacts_analyzed": 0,
+        "generation_plan_used": false,
+        "scope_plan_used": false
+      },
+      "files_analyzed": 25,
+      "name": "hypopg",
+      "repository_url": "https://github.com/HypoPG/hypopg",
+      "revision": "21d5461ad1868434cc47d9aa656d7afc2b24c464",
+      "revision_date": "2026-06-20",
+      "source_manifest_digest": "sha256:2a4e43eb26be9ccca1177503f9b9fbf85617a0e6bb35007356d905b5501c57ee"
+    },
+    {
+      "analysis_status": "completed",
+      "capability_profile": [
+        "database.superuser-install",
+        "process.background-worker"
+      ],
+      "coverage_controls": {
+        "generated_artifacts_analyzed": 0,
+        "generation_plan_used": false,
+        "scope_plan_used": false
+      },
+      "files_analyzed": 22,
+      "name": "pg_cron",
+      "repository_url": "https://github.com/citusdata/pg_cron",
+      "revision": "16618e69cb38f69abd6512b90e8c742010582e0e",
+      "revision_date": "2026-07-21",
+      "source_manifest_digest": "sha256:77aeaf01c2a3bb1e37bf83b924d9f5a90c8950a6f2505f3cb190986eb1921291"
+    },
+    {
+      "analysis_status": "completed",
+      "capability_profile": [
+        "database.public-execute",
+        "database.security-definer",
+        "database.superuser-install",
+        "network.client",
+        "network.client-server",
+        "process.background-worker"
+      ],
+      "coverage_controls": {
+        "generated_artifacts_analyzed": 0,
+        "generation_plan_used": false,
+        "scope_plan_used": false
+      },
+      "files_analyzed": 49,
+      "name": "pg_net",
+      "repository_url": "https://github.com/supabase/pg_net",
+      "revision": "a8299b11182ea5c974f5e89ae83e70e9e44e9e8f",
+      "revision_date": "2026-07-09",
+      "source_manifest_digest": "sha256:b5e167a9567d2e0ab090b921374d71c563ecbde86653fa53ca79543b91f99f06"
+    },
+    {
+      "analysis_status": "completed",
+      "capability_profile": [
+        "database.extension-install",
+        "database.public-execute",
+        "database.security-definer",
+        "process.background-worker"
+      ],
+      "coverage_controls": {
+        "generated_artifacts_analyzed": 0,
+        "generation_plan_used": false,
+        "scope_plan_used": false
+      },
+      "files_analyzed": 237,
+      "name": "pg_partman",
+      "repository_url": "https://github.com/pgpartman/pg_partman",
+      "revision": "0e22336185b42fbd036e2d72b3f52e25ced07498",
+      "revision_date": "2026-07-26",
+      "source_manifest_digest": "sha256:8617bd8ddd53eae118bd462e4847b55bf48a575a646cdd212327c31340254aef"
+    },
+    {
+      "analysis_status": "completed",
+      "capability_profile": [
+        "database.extension-install",
+        "database.extension-update",
+        "database.schema-relocation",
+        "database.superuser-install",
+        "filesystem.read-write",
+        "process.background-worker"
+      ],
+      "coverage_controls": {
+        "generated_artifacts_analyzed": 0,
+        "generation_plan_used": false,
+        "scope_plan_used": false
+      },
+      "files_analyzed": 45,
+      "name": "pg_tle",
+      "repository_url": "https://github.com/aws/pg_tle",
+      "revision": "92f908bc77f0a2a92577f8308c72af2acde13f86",
+      "revision_date": "2026-06-22",
+      "source_manifest_digest": "sha256:48d9a9f73752bccd4c1ffe797b5a3e30ea119d0aa5050205b8f039567ae65230"
+    },
+    {
+      "analysis_status": "completed",
+      "capability_profile": [
+        "database.public-execute",
+        "database.schema-relocation",
+        "database.superuser-install"
+      ],
+      "coverage_controls": {
+        "generated_artifacts_analyzed": 0,
+        "generation_plan_used": false,
+        "scope_plan_used": false
+      },
+      "files_analyzed": 4,
+      "name": "pgaudit",
+      "repository_url": "https://github.com/pgaudit/pgaudit",
+      "revision": "f4563a68c72b434eec9ea1b1230ec241aa7d55ae",
+      "revision_date": "2026-07-21",
+      "source_manifest_digest": "sha256:2fdd2667d43ae6733c66839af19a647cf06d8f4999bc83227d1db36f51c331a8"
+    },
+    {
+      "analysis_status": "completed",
+      "capability_profile": [
+        "database.extension-install"
+      ],
+      "coverage_controls": {
+        "generated_artifacts_analyzed": 0,
+        "generation_plan_used": false,
+        "scope_plan_used": false
+      },
+      "files_analyzed": 80,
+      "name": "pgmq",
+      "repository_url": "https://github.com/pgmq/pgmq",
+      "revision": "fde87d8fb83f0d57fa28aedc2b24e60e064add39",
+      "revision_date": "2026-07-24",
+      "source_manifest_digest": "sha256:2b7fb8a65b2558686bfab7760ec5c8f131705df4e46d6bb342b6478ed9d4efdc"
+    },
+    {
+      "analysis_status": "completed",
+      "capability_profile": [
+        "database.extension-install",
+        "database.schema-relocation",
+        "database.superuser-install"
+      ],
+      "coverage_controls": {
+        "generated_artifacts_analyzed": 0,
+        "generation_plan_used": false,
+        "scope_plan_used": false
+      },
+      "files_analyzed": 82,
+      "name": "pgvector",
+      "repository_url": "https://github.com/pgvector/pgvector",
+      "revision": "a6420355c5d1c08f4c5fbd5112fc17e4cf3b5eb5",
+      "revision_date": "2026-07-10",
+      "source_manifest_digest": "sha256:9f361a03d66e37e1262941bc725e7236408e190523472f26608879b7257aeac5"
+    },
+    {
+      "analysis_status": "not_completed",
+      "coverage_controls": {
+        "generation_plan_used": false,
+        "scope_plan_used": false
+      },
+      "name": "timescaledb",
+      "non_completion_class": "symlinked_directory",
+      "repository_url": "https://github.com/timescale/timescaledb",
+      "revision": "77d9d3281ce1265209eb1c39c8a7c04067786213",
+      "revision_date": "2026-07-24"
+    }
+  ],
+  "provenance": {
+    "manifest_digest": "sha256:061dbb47a483592f009feae230249d3d0f3939205d80a4c1748a7dce1cef9cb3",
+    "normalized_summary_digest": "sha256:5cf8fee0f53fc25cc977281e1834e8e98f2693f0bc355edfebc2c1e48dfa15f8",
+    "tool": {
+      "name": "pgextassure",
+      "ruleset_version": "2026-07-28.2",
+      "version": "0.1.0-alpha.1"
+    }
+  },
+  "schema_version": "1.0",
+  "summary": {
+    "analyses_completed": 8,
+    "analyses_not_completed": 1,
+    "projects": 9
+  }
+}

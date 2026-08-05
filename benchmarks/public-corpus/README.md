@@ -101,6 +101,26 @@ are documented in
 The digest-bound scope follow-up that completes all 16 pinned scans is
 documented in [SCOPE-2026-07-29.md](SCOPE-2026-07-29.md).
 
+## Public Assurance Index
+
+After a normalized corpus run has passed the publication gate, generate a
+disclosure-safe public inventory with:
+
+```bash
+python tools/generate_assurance_index.py \
+  --summary benchmark-results/public-corpus/summary.json \
+  --manifest benchmarks/public-corpus/manifest.tsv \
+  --output-dir benchmark-results/public-corpus/index
+```
+
+The index deliberately omits finding counts, severities, rule identifiers,
+evidence, paths, and source excerpts. It records analysis coverage and
+provenance only; it is not a security rating or certification. See
+[Public Extension Assurance Index](../../docs/public-assurance-index.md). The
+first disclosure-safe snapshot, derived from the documented 2026-07-28 run,
+is available as [human-readable Markdown](index/2026-07-28/index.md) and
+[schema-bound JSON](index/2026-07-28/index.json).
+
 ## Publication gate
 
 Do not publish a corpus result merely because the runner completed. Before a
