@@ -121,6 +121,13 @@ first disclosure-safe snapshot, derived from the documented 2026-07-28 run,
 is available as [human-readable Markdown](index/2026-07-28/index.md) and
 [schema-bound JSON](index/2026-07-28/index.json).
 
+The current 16-project snapshot reproduced with PgExtAssure
+`0.1.0-alpha.15` is available as
+[human-readable Markdown](index/2026-08-05-alpha15/index.md) and
+[schema-bound JSON](index/2026-08-05-alpha15/index.json). Its checkout,
+coverage, and digest record is documented in
+[INDEX-2026-08-05-ALPHA15.md](INDEX-2026-08-05-ALPHA15.md).
+
 ## Publication gate
 
 Do not publish a corpus result merely because the runner completed. Before a
