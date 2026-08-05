@@ -542,17 +542,18 @@ Dynamic analysis will still be evidence, not certification. Details are in the
 
 ## Public corpus loop
 
-PgExtAssure is designed to create a useful public evidence corpus without making
-source upload the default:
+PgExtAssure maintains a pinned public corpus for reproducibility and scanner
+quality. The disclosure-safe
+[Extension Assurance Index](docs/public-assurance-index.md) publishes analysis
+coverage, provenance, and capability profiles for public revisions while
+omitting findings, severities, rule identifiers, evidence, paths, and source
+excerpts.
 
-1. maintainers run the scanner locally or in CI;
-2. they may opt in to publish a normalized report containing rule IDs,
-   severities, scanner/rule-set versions, extension version, and cryptographic
-   digests—not private source;
-3. accepted fixes link a finding to a remediation diff;
-4. the corpus improves regression fixtures, rule precision, and a versioned
-   compatibility/admission badge;
-5. better rules produce more useful local reports and more contributors.
+A completed index entry means only that the pinned source was processed. It is
+not a security rating, certification, endorsement, vulnerability report, or
+allowlist decision. Project-specific security observations remain behind the
+corpus publication gate until they have been reviewed and, where appropriate,
+coordinated with the upstream maintainer.
 
 No corpus upload or telemetry exists in the static MVP. Any future contribution
 flow must be explicit opt-in, preview the exact payload, and support deletion.
@@ -594,6 +595,7 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Helm deployment with mandatory mTLS](docs/helm-deployment.md)
 - [Roadmap](docs/roadmap.md)
 - [Public corpus pilot](benchmarks/public-corpus/README.md)
+- [Public Extension Assurance Index](docs/public-assurance-index.md)
 
 ## Development
 

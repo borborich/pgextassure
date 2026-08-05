@@ -1,0 +1,112 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/public-assurance-index-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "document_type": {"const": "pgextassure.public-assurance-index"},
+    "latest_source_revision_date": {"format": "date", "type": "string"},
+    "notice": {
+      "additionalProperties": false,
+      "properties": {
+        "limitations": {"items": {"type": "string"}, "minItems": 1, "type": "array"},
+        "no_vulnerability_disclosure": {"const": true},
+        "not_a_certification": {"const": true},
+        "not_a_security_rating": {"const": true},
+        "purpose": {"type": "string"}
+      },
+      "required": ["purpose", "not_a_security_rating", "not_a_certification", "no_vulnerability_disclosure", "limitations"],
+      "type": "object"
+    },
+    "projects": {
+      "items": {
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {"analysis_status": {"const": "completed"}},
+              "required": ["analysis_status"]
+            },
+            "then": {
+              "not": {"required": ["non_completion_class"]},
+              "required": ["source_manifest_digest", "files_analyzed", "capability_profile"]
+            }
+          },
+          {
+            "if": {
+              "properties": {"analysis_status": {"const": "not_completed"}},
+              "required": ["analysis_status"]
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  {"required": ["source_manifest_digest"]},
+                  {"required": ["files_analyzed"]},
+                  {"required": ["capability_profile"]}
+                ]
+              },
+              "required": ["non_completion_class"]
+            }
+          }
+        ],
+        "properties": {
+          "analysis_status": {"enum": ["completed", "not_completed"]},
+          "capability_profile": {"items": {"pattern": "^[a-z][a-z0-9-]*(\\.[a-z0-9-]+)+$", "type": "string"}, "type": "array", "uniqueItems": true},
+          "coverage_controls": {
+            "additionalProperties": false,
+            "properties": {
+              "generated_artifacts_analyzed": {"minimum": 0, "type": "integer"},
+              "generation_plan_used": {"type": "boolean"},
+              "scope_plan_used": {"type": "boolean"}
+            },
+            "required": ["generation_plan_used", "scope_plan_used"],
+            "type": "object"
+          },
+          "files_analyzed": {"minimum": 0, "type": "integer"},
+          "name": {"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$", "type": "string"},
+          "non_completion_class": {"pattern": "^[a-z][a-z0-9_]{0,63}$", "type": "string"},
+          "repository_url": {"pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", "type": "string"},
+          "revision": {"pattern": "^[0-9a-f]{40}$", "type": "string"},
+          "revision_date": {"format": "date", "type": "string"},
+          "source_manifest_digest": {"pattern": "^sha256:[0-9a-f]{64}$", "type": "string"}
+        },
+        "required": ["name", "repository_url", "revision", "revision_date", "analysis_status", "coverage_controls"],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "manifest_digest": {"pattern": "^sha256:[0-9a-f]{64}$", "type": "string"},
+        "normalized_summary_digest": {"pattern": "^sha256:[0-9a-f]{64}$", "type": "string"},
+        "tool": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {"const": "pgextassure"},
+            "ruleset_version": {"maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9.+_-]{0,63}$", "type": "string"},
+            "version": {"maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9.+_-]{0,63}$", "type": "string"}
+          },
+          "required": ["name", "version", "ruleset_version"],
+          "type": "object"
+        }
+      },
+      "required": ["normalized_summary_digest", "manifest_digest", "tool"],
+      "type": "object"
+    },
+    "schema_version": {"const": "1.0"},
+    "summary": {
+      "additionalProperties": false,
+      "properties": {
+        "analyses_completed": {"minimum": 0, "type": "integer"},
+        "analyses_not_completed": {"minimum": 0, "type": "integer"},
+        "projects": {"minimum": 1, "type": "integer"}
+      },
+      "required": ["projects", "analyses_completed", "analyses_not_completed"],
+      "type": "object"
+    }
+  },
+  "required": ["schema_version", "document_type", "latest_source_revision_date", "notice", "provenance", "summary", "projects"],
+  "title": "PgExtAssure public assurance index 1.0",
+  "type": "object"
+}
