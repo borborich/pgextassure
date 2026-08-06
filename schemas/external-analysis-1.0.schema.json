@@ -39,7 +39,7 @@
       "items": {
         "additionalProperties": false,
         "properties": {
-          "level": {"enum": ["error", "warning"]},
+          "level": {"enum": ["error", "warning", "error-or-warning"]},
           "line": {"maximum": 33554433, "minimum": 1, "type": "integer"},
           "message": {"maxLength": 4096, "type": "string"},
           "native_rule_id": {"pattern": "^PS[0-9]{3}$", "type": "string"},

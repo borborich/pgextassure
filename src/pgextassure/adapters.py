@@ -56,10 +56,10 @@ _LEVELS = {
             "PS013",
             "PS014",
             "PS015",
-            "PS017",
             "PS018",
         )
     },
+    "PS017": "error-or-warning",
 }
 _BIDI_CONTROLS = frozenset(
     {
@@ -250,10 +250,25 @@ def _parse_pgspot_stdout(raw: bytes) -> tuple[list[dict[str, Any]], dict[str, in
         "errors": sum(item["level"] == "error" for item in diagnostics),
         "warnings": sum(item["level"] == "warning" for item in diagnostics),
     }
-    if any(summary[key] != observed[key] for key in observed):
+    ambiguous = [
+        item for item in diagnostics if item["level"] == "error-or-warning"
+    ]
+    remaining_errors = summary["errors"] - observed["errors"]
+    remaining_warnings = summary["warnings"] - observed["warnings"]
+    if (
+        remaining_errors < 0
+        or remaining_warnings < 0
+        or remaining_errors + remaining_warnings != len(ambiguous)
+    ):
         raise ExternalAnalysisError(
             "pgspot summary does not match parsed diagnostics"
         )
+    if ambiguous and remaining_errors == 0:
+        for item in ambiguous:
+            item["level"] = "warning"
+    elif ambiguous and remaining_warnings == 0:
+        for item in ambiguous:
+            item["level"] = "error"
     summary["diagnostics"] = len(diagnostics)
     return diagnostics, summary
 
@@ -452,9 +467,14 @@ def _validate_document(document: object) -> dict[str, Any]:
         if not isinstance(native_rule_id, str) or native_rule_id not in _LEVELS:
             raise ExternalAnalysisError(f"diagnostic {index} rule is invalid")
         expected_level = _LEVELS[native_rule_id]
+        allowed_levels = (
+            {"error", "warning", "error-or-warning"}
+            if expected_level == "error-or-warning"
+            else {expected_level}
+        )
         if (
             diagnostic["rule_id"] != f"pgspot.{native_rule_id}"
-            or diagnostic["level"] != expected_level
+            or diagnostic["level"] not in allowed_levels
         ):
             raise ExternalAnalysisError(
                 f"diagnostic {index} normalization is inconsistent"
@@ -474,14 +494,33 @@ def _validate_document(document: object) -> dict[str, Any]:
             raise ExternalAnalysisError(f"diagnostic {index} line is invalid")
         if expected_level == "error":
             observed_errors += 1
-        else:
+        elif expected_level == "warning":
             observed_warnings += 1
+        elif diagnostic["level"] == "error":
+            observed_errors += 1
+        elif diagnostic["level"] == "warning":
+            observed_warnings += 1
+        elif diagnostic["level"] != "error-or-warning":
+            raise ExternalAnalysisError(
+                f"diagnostic {index} ambiguous level is invalid"
+            )
     if (
         summary["diagnostics"] != len(root["diagnostics"])
-        or summary["errors"] != observed_errors
-        or summary["warnings"] != observed_warnings
+        or summary["errors"] < observed_errors
+        or summary["warnings"] < observed_warnings
+        or summary["errors"] + summary["warnings"] != len(root["diagnostics"])
     ):
         raise ExternalAnalysisError("external analysis summary is inconsistent")
+    ambiguous_count = sum(
+        diagnostic["level"] == "error-or-warning"
+        for diagnostic in root["diagnostics"]
+    )
+    if (
+        summary["errors"] - observed_errors
+        + summary["warnings"] - observed_warnings
+        != ambiguous_count
+    ):
+        raise ExternalAnalysisError("external analysis ambiguous levels are inconsistent")
     expected_exit = 1 if root["diagnostics"] else 0
     if input_data["exit_code"] != expected_exit:
         raise ExternalAnalysisError("external analysis exit code is inconsistent")

@@ -62,6 +62,12 @@ or multi-file headings. An unknown procedural-language message is not silently
 normalized; review or configure pgspot so it emits a fully structured supported
 result.
 
+Pgspot `0.9.2` uses PS017 as both an error and a warning but its text format
+does not print a per-diagnostic level. When the summary proves that every PS017
+in a file has the same level, the adapter records that level. If a file mixes
+both, each PS017 is honestly marked `error-or-warning` while the exact aggregate
+error and warning counts remain preserved in `summary`.
+
 The versioned JSON Schema is
 [`external-analysis-1.0.schema.json`](../schemas/external-analysis-1.0.schema.json).
 Schema validation checks structure; the command-line verifier additionally
