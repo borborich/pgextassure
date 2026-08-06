@@ -41,7 +41,7 @@
         "properties": {
           "level": {"enum": ["error", "warning"]},
           "line": {"maximum": 33554433, "minimum": 1, "type": "integer"},
-          "message": {"maxLength": 4096, "minLength": 1, "type": "string"},
+          "message": {"maxLength": 4096, "type": "string"},
           "native_rule_id": {"pattern": "^PS[0-9]{3}$", "type": "string"},
           "path": {"$ref": "#/$defs/path"},
           "rule_id": {"pattern": "^pgspot\\.PS[0-9]{3}$", "type": "string"},

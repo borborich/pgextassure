@@ -140,9 +140,16 @@ def _sha256(raw: bytes) -> str:
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
-def _text(value: object, *, label: str, maximum: int = MAX_TEXT_BYTES) -> str:
-    if not isinstance(value, str) or not value:
-        raise ExternalAnalysisError(f"{label} must be non-empty text")
+def _text(
+    value: object,
+    *,
+    label: str,
+    maximum: int = MAX_TEXT_BYTES,
+    allow_empty: bool = False,
+) -> str:
+    if not isinstance(value, str) or (not value and not allow_empty):
+        qualifier = "text" if allow_empty else "non-empty text"
+        raise ExternalAnalysisError(f"{label} must be {qualifier}")
     try:
         encoded = value.encode("utf-8", errors="strict")
     except UnicodeEncodeError as error:
@@ -224,7 +231,11 @@ def _parse_pgspot_stdout(raw: bytes) -> tuple[list[dict[str, Any]], dict[str, in
                 "native_rule_id": code,
                 "level": level,
                 "title": _text(title, label=f"{code} title"),
-                "message": _text(message, label=f"{code} message"),
+                "message": _text(
+                    message,
+                    label=f"{code} message",
+                    allow_empty=True,
+                ),
                 "line": parsed_source_line,
             }
         )
@@ -448,7 +459,11 @@ def _validate_document(document: object) -> dict[str, Any]:
                 f"diagnostic {index} normalization is inconsistent"
             )
         _text(diagnostic["title"], label=f"diagnostic {index} title")
-        _text(diagnostic["message"], label=f"diagnostic {index} message")
+        _text(
+            diagnostic["message"],
+            label=f"diagnostic {index} message",
+            allow_empty=True,
+        )
         if diagnostic["path"] != subject["path"]:
             raise ExternalAnalysisError(f"diagnostic {index} path is inconsistent")
         if (
