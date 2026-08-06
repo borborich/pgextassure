@@ -429,6 +429,29 @@ metadata-only skipped-file inventory. See
 See [Rule reference](docs/rules.md) for the implemented checks and input
 coverage.
 
+## Normalize pgspot evidence
+
+PgExtAssure can normalize saved pgspot `0.9.2` single-file output without
+executing pgspot or extension code:
+
+```bash
+pgextassure adapter pgspot sql/extension.sql \
+  --stdout pgspot.stdout \
+  --subject-path sql/extension.sql \
+  --analyzer-version 0.9.2 \
+  --exit-code 1 \
+  --output pgspot.external-analysis.json
+
+pgextassure adapter verify pgspot.external-analysis.json \
+  --source sql/extension.sql \
+  --stdout pgspot.stdout
+```
+
+The strict document binds the exact source and stdout bytes, declared analyzer
+version, saved exit code, counters, and normalized diagnostics. It is
+observational review evidence and does not grant or deny admission. See
+[External analyzer evidence](docs/external-analyzers.md).
+
 ## What the MVP looks for
 
 Rules are grouped around pre-admission questions:

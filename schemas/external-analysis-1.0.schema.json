@@ -1,0 +1,119 @@
+{
+  "$id": "https://github.com/borborich/pgextassure/raw/main/schemas/external-analysis-1.0.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "path": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[^\\u0000-\\u001f\\u007f-\\u009f]+$",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "adapter": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {"const": "pgextassure.pgspot-text"},
+        "version": {"const": "1.0"}
+      },
+      "required": ["name", "version"],
+      "type": "object"
+    },
+    "analyzer": {
+      "additionalProperties": false,
+      "properties": {
+        "information_uri": {"const": "https://github.com/timescale/pgspot"},
+        "name": {"const": "pgspot"},
+        "version": {"const": "0.9.2"},
+        "version_evidence": {"const": "declared"}
+      },
+      "required": ["name", "version", "version_evidence", "information_uri"],
+      "type": "object"
+    },
+    "diagnostics": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "level": {"enum": ["error", "warning"]},
+          "line": {"maximum": 33554433, "minimum": 1, "type": "integer"},
+          "message": {"maxLength": 4096, "minLength": 1, "type": "string"},
+          "native_rule_id": {"pattern": "^PS[0-9]{3}$", "type": "string"},
+          "path": {"$ref": "#/$defs/path"},
+          "rule_id": {"pattern": "^pgspot\\.PS[0-9]{3}$", "type": "string"},
+          "title": {"maxLength": 4096, "minLength": 1, "type": "string"}
+        },
+        "required": [
+          "rule_id",
+          "native_rule_id",
+          "level",
+          "title",
+          "message",
+          "path",
+          "line"
+        ],
+        "type": "object"
+      },
+      "maxItems": 10000,
+      "type": "array"
+    },
+    "document_type": {"const": "pgextassure.external-analysis"},
+    "input": {
+      "additionalProperties": false,
+      "properties": {
+        "exit_code": {"enum": [0, 1]},
+        "format": {"const": "pgspot-text-v0.9.2"},
+        "stdout_sha256": {"$ref": "#/$defs/digest"},
+        "stdout_size": {
+          "maximum": 4194304,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": ["format", "exit_code", "stdout_size", "stdout_sha256"],
+      "type": "object"
+    },
+    "schema_version": {"const": "1.0"},
+    "subject": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "sha256": {"$ref": "#/$defs/digest"},
+        "size": {
+          "maximum": 33554432,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": ["path", "size", "sha256"],
+      "type": "object"
+    },
+    "summary": {
+      "additionalProperties": false,
+      "properties": {
+        "diagnostics": {"maximum": 10000, "minimum": 0, "type": "integer"},
+        "errors": {"maximum": 10000, "minimum": 0, "type": "integer"},
+        "unknown": {"const": 0},
+        "warnings": {"maximum": 10000, "minimum": 0, "type": "integer"}
+      },
+      "required": ["diagnostics", "errors", "warnings", "unknown"],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "document_type",
+    "adapter",
+    "analyzer",
+    "subject",
+    "input",
+    "summary",
+    "diagnostics"
+  ],
+  "title": "PgExtAssure External Analysis 1.0",
+  "type": "object"
+}

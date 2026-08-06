@@ -23,7 +23,8 @@ Current contracts:
 - Enterprise Admission Event `1.0`;
 - Integration Export Manifest `1.0`;
 - Admission Gateway Error `1.0`;
-- Pilot Acceptance Report `1.0`.
+- Pilot Acceptance Report `1.0`;
+- External Analysis `1.0`.
 
 Agent Review Pack `1.0` is described by
 [`agent-review-pack-1.0.schema.json`](../schemas/agent-review-pack-1.0.schema.json).
@@ -84,6 +85,13 @@ It retains six ordered offline, TLS 1.3/mTLS, admission, and exact-replay checks
 plus exact CA, client-certificate, and observed server-certificate digests,
 without recording private-key material, secret paths, or the raw idempotency
 key.
+
+External Analysis `1.0` is described by
+[`external-analysis-1.0.schema.json`](../schemas/external-analysis-1.0.schema.json).
+Its independent verifier rebuilds the document from the exact source SQL and
+saved analyzer stdout, validates all counters and the saved exit code, and
+currently accepts only pgspot `0.9.2` single-file text output. It remains
+observational review evidence and does not change admission state.
 
 ## Coverage inventory
 
