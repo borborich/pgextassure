@@ -41,7 +41,7 @@ _DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
 _LEVELS = {
     **{
         code: "warning"
-        for code in ("PS001", "PS002", "PS005", "PS006", "PS016", "PS017")
+        for code in ("PS001", "PS002", "PS005", "PS006", "PS016")
     },
     **{
         code: "error"
@@ -56,6 +56,7 @@ _LEVELS = {
             "PS013",
             "PS014",
             "PS015",
+            "PS017",
             "PS018",
         )
     },

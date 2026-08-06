@@ -103,6 +103,23 @@ class ExternalAnalyzerAdapterTests(unittest.TestCase):
         self.assertEqual("", document["diagnostics"][0]["message"])
         self.assertEqual("error", document["diagnostics"][0]["level"])
 
+    def test_official_ps017_is_normalized_as_error(self) -> None:
+        output = (
+            "PS017: Unqualified object reference: text in CAST(x AS text) "
+            "at line 1\n\n Errors: 1 Warnings: 0 Unknown: 0 \n\n"
+        )
+        with TemporaryDirectory() as directory:
+            source, stdout = self._inputs(Path(directory), output)
+            document = normalize_pgspot(
+                source,
+                stdout,
+                subject_path="extension.sql",
+                analyzer_version="0.9.2",
+                exit_code=1,
+            )
+
+        self.assertEqual("error", document["diagnostics"][0]["level"])
+
     def test_unknown_lines_counts_rules_versions_and_exit_codes_fail_closed(self) -> None:
         cases = (
             ("banner\nErrors: 0 Warnings: 0 Unknown: 0\n", "unrecognized"),
