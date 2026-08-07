@@ -46,6 +46,8 @@ The MVP checks for:
 
 - `COPY ... PROGRAM`;
 - server-side file access through `COPY`;
+- recognized external-database and HTTP routine calls or declarations; routine
+  names mentioned only by `ALTER` or `DROP` do not introduce that capability;
 - untrusted PL/Python and PL/Perl declarations;
 - function execution granted to `PUBLIC`;
 - `SECURITY DEFINER` functions with unqualified object or callable resolution and no

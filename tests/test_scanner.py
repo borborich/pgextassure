@@ -596,6 +596,43 @@ class ScannerContractTests(unittest.TestCase):
 
             self.assert_has_rule(path, "sql.external-connection")
 
+    def test_external_connection_ignores_non_introducing_routine_ddl(
+        self,
+    ) -> None:
+        statements = (
+            "ALTER FUNCTION net.http_get(text) SECURITY DEFINER;\n",
+            "ALTER PROCEDURE public.http_post(text) PARALLEL UNSAFE;\n",
+            "DROP FUNCTION net.http_delete(text, jsonb);\n",
+            "DROP ROUTINE public.http_head(text);\n",
+        )
+        for statement in statements:
+            with (
+                self.subTest(statement=statement),
+                TemporaryDirectory() as directory,
+            ):
+                path = Path(directory) / "routine-ddl.sql"
+                path.write_text(statement, encoding="utf-8")
+
+                report = scan(path)
+
+            self.assertNotIn(
+                "sql.external-connection",
+                rule_ids_from(report),
+            )
+
+    def test_external_connection_after_routine_ddl_is_still_flagged(
+        self,
+    ) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "ddl-then-call.sql"
+            path.write_text(
+                "ALTER FUNCTION net.http_get(text) SECURITY DEFINER;\n"
+                "SELECT net.http_get('https://example.invalid');\n",
+                encoding="utf-8",
+            )
+
+            self.assert_has_rule(path, "sql.external-connection")
+
     def test_quoted_and_string_language_names_are_flagged(self) -> None:
         with TemporaryDirectory() as directory:
             path = Path(directory) / "quoted-languages.sql"

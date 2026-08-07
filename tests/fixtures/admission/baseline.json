@@ -13,7 +13,7 @@
   },
   "tool": {
     "name": "pgextassure",
-    "ruleset_version": "2026-08-07.1",
+    "ruleset_version": "2026-08-07.2",
     "version": "0.1.0-alpha.2"
   }
 }

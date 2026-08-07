@@ -1487,6 +1487,24 @@ def scan_sql(path: str, text: str) -> list[Finding]:
     definer_routines: list[tuple[int, int, _RoutineKey, str, bool]] = []
     known_definers: set[_RoutineKey] = set()
     comments_masked = mask_sql_comments(lexical_text)
+    non_introducing_routine_ddl: list[tuple[int, int]] = []
+    for ddl_offset, ddl_statement in sql_statements(comments_masked):
+        ddl_view = mask_sql_literals_and_comments(ddl_statement)
+        if re.match(
+            r"\s*(?:ALTER|DROP)\s+(?:FUNCTION|PROCEDURE|ROUTINE)\b",
+            ddl_view,
+            re.IGNORECASE,
+        ):
+            non_introducing_routine_ddl.append(
+                (ddl_offset, ddl_offset + len(ddl_statement))
+            )
+
+    def is_non_introducing_routine_ddl(offset: int) -> bool:
+        return any(
+            start <= offset < end
+            for start, end in non_introducing_routine_ddl
+        )
+
     for statement_offset, comments_statement in sql_statements(comments_masked):
         statement_end = statement_offset + len(comments_statement)
         statement = masked[statement_offset:statement_end]
@@ -2001,6 +2019,8 @@ def scan_sql(path: str, text: str) -> list[Finding]:
         re.IGNORECASE,
     )
     for match in external_calls.finditer(masked):
+        if is_non_introducing_routine_ddl(match.start()):
+            continue
         if not limiter.allow("sql.external-connection"):
             continue
         findings.append(
@@ -2024,6 +2044,8 @@ def scan_sql(path: str, text: str) -> list[Finding]:
         r'"(?P<name>dblink(?:_[a-z0-9_]+)?)"\s*\('
     )
     for match in quoted_external_calls.finditer(identifier_masked):
+        if is_non_introducing_routine_ddl(match.start()):
+            continue
         if not limiter.allow("sql.external-connection"):
             continue
         findings.append(
