@@ -14,7 +14,7 @@
       "sha256:c746a68e0203dfff539d745c57967e1b8fef24b6a4c70c5ab5072095beb327b5"
     ],
     "allowed_ruleset_versions": [
-      "2026-07-29.6"
+      "2026-08-07.1"
     ],
     "allowed_tool_versions": [
       "0.1.0-alpha.15"

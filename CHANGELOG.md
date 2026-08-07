@@ -14,6 +14,18 @@ and releases use semantic versioning.
 - Published External Analysis JSON Schema and explicit observational-only
   trust boundary that leaves admission policy and Evidence Bundle `1.0`
   unchanged.
+- Separate medium-severity review signals for `SECURITY DEFINER` routines with
+  runtime `search_path` logic or only plainly schema-qualified calls, and for
+  event-trigger callbacks that are not ordinary callable APIs.
+
+### Changed
+
+- High-confidence `SECURITY DEFINER` search-path findings now require an
+  unqualified callable lookup when the declaration has no recognized safe
+  path; ambiguous body-level cases remain visible without asserting an
+  exploit.
+- PUBLIC-execute findings explicitly describe an exposed definer authority
+  boundary without claiming that every such routine is a privilege escalation.
 
 ## [0.1.0-alpha.15] - 2026-07-30
 

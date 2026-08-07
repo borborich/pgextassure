@@ -660,7 +660,10 @@ class ScannerContractTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            self.assert_has_rule(path, "sql.security-definer-search-path")
+            self.assert_has_rule(
+                path,
+                "sql.security-definer-search-path-review",
+            )
 
     def test_security_definer_uses_last_search_path_setting(self) -> None:
         with TemporaryDirectory() as directory:
@@ -750,7 +753,7 @@ class ScannerContractTests(unittest.TestCase):
             report = scan(path)
 
         rules = rule_ids_from(report)
-        self.assertIn("sql.security-definer-search-path", rules)
+        self.assertIn("sql.security-definer-search-path-review", rules)
         self.assertIn("sql.security-definer-public-execute", rules)
 
     def test_extschema_placeholder_security_definer_is_flagged(self) -> None:
@@ -765,7 +768,7 @@ class ScannerContractTests(unittest.TestCase):
             report = scan(path)
 
         rules = rule_ids_from(report)
-        self.assertIn("sql.security-definer-search-path", rules)
+        self.assertIn("sql.security-definer-search-path-review", rules)
         self.assertIn("sql.security-definer-public-execute", rules)
 
     def test_extschema_named_placeholder_with_hyphen_is_flagged(self) -> None:
@@ -780,7 +783,7 @@ class ScannerContractTests(unittest.TestCase):
             report = scan(path)
 
         rules = rule_ids_from(report)
-        self.assertIn("sql.security-definer-search-path", rules)
+        self.assertIn("sql.security-definer-search-path-review", rules)
         self.assertIn("sql.security-definer-public-execute", rules)
 
     def test_unicode_uescape_routine_name_is_flagged(self) -> None:
@@ -795,7 +798,7 @@ class ScannerContractTests(unittest.TestCase):
             report = scan(path)
 
         rules = rule_ids_from(report)
-        self.assertIn("sql.security-definer-search-path", rules)
+        self.assertIn("sql.security-definer-search-path-review", rules)
         self.assertIn("sql.security-definer-public-execute", rules)
 
     def test_alter_security_definer_without_safe_path_is_flagged(self) -> None:
@@ -806,7 +809,10 @@ class ScannerContractTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            self.assert_has_rule(path, "sql.security-definer-search-path")
+            self.assert_has_rule(
+                path,
+                "sql.security-definer-search-path-review",
+            )
 
     def test_alter_security_definer_without_signature_is_flagged(self) -> None:
         with TemporaryDirectory() as directory:
@@ -819,7 +825,7 @@ class ScannerContractTests(unittest.TestCase):
             report = scan(path)
 
         rules = rule_ids_from(report)
-        self.assertIn("sql.security-definer-search-path", rules)
+        self.assertIn("sql.security-definer-search-path-review", rules)
         self.assertIn("sql.security-definer-public-execute", rules)
 
     def test_alter_security_definer_with_safe_path_still_requires_revoke(

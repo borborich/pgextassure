@@ -12,6 +12,81 @@ def _rules(path: Path) -> list[str]:
 
 
 class PostgreSqlEdgeRegressionTests(unittest.TestCase):
+    def test_security_definer_event_trigger_is_not_ordinary_public_api(
+        self,
+    ) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "event-trigger.sql"
+            path.write_text(
+                "CREATE FUNCTION public.audit_ddl() RETURNS event_trigger "
+                "LANGUAGE C SECURITY DEFINER "
+                "SET search_path = pg_catalog, pg_temp "
+                "AS 'audit', 'audit_ddl';\n",
+                encoding="utf-8",
+            )
+
+            report = scan_path(path)
+
+        rules = [finding.rule_id for finding in report.findings]
+        self.assertIn("sql.security-definer-event-trigger", rules)
+        self.assertNotIn("sql.security-definer-public-execute", rules)
+
+    def test_fully_qualified_definer_body_is_review_not_exploit_claim(
+        self,
+    ) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "qualified.sql"
+            path.write_text(
+                "CREATE FUNCTION public.wrapper(value bigint) RETURNS bigint "
+                "LANGUAGE plpgsql SECURITY DEFINER AS $$ "
+                "BEGIN RETURN trusted.target(value); END $$;\n",
+                encoding="utf-8",
+            )
+
+            report = scan_path(path)
+
+        rules = [finding.rule_id for finding in report.findings]
+        self.assertIn("sql.security-definer-search-path-review", rules)
+        self.assertNotIn("sql.security-definer-search-path", rules)
+
+    def test_unqualified_definer_call_remains_critical(self) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "unqualified.sql"
+            path.write_text(
+                "CREATE FUNCTION public.wrapper(value bigint) RETURNS bigint "
+                "LANGUAGE plpgsql SECURITY DEFINER AS $$ "
+                "BEGIN RETURN target(value); END $$;\n",
+                encoding="utf-8",
+            )
+
+            report = scan_path(path)
+
+        findings = {
+            finding.rule_id: finding for finding in report.findings
+        }
+        self.assertIn("sql.security-definer-search-path", findings)
+        self.assertEqual(
+            findings["sql.security-definer-search-path"].severity.value,
+            "critical",
+        )
+
+    def test_runtime_search_path_logic_is_explicit_review_signal(self) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "runtime-path.sql"
+            path.write_text(
+                "CREATE FUNCTION public.wrapper() RETURNS void "
+                "LANGUAGE plpgsql SECURITY DEFINER AS $$ BEGIN "
+                "PERFORM pg_catalog.set_config("
+                "'search_path', 'trusted, pg_temp', true); END $$;\n",
+                encoding="utf-8",
+            )
+
+            report = scan_path(path)
+
+        rules = [finding.rule_id for finding in report.findings]
+        self.assertIn("sql.security-definer-search-path-review", rules)
+        self.assertNotIn("sql.security-definer-search-path", rules)
+
     def test_literal_at_sign_version_is_not_treated_as_template(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -229,7 +304,7 @@ class PostgreSqlEdgeRegressionTests(unittest.TestCase):
 
             rules = _rules(path)
 
-        self.assertIn("sql.security-definer-search-path", rules)
+        self.assertIn("sql.security-definer-search-path-review", rules)
         self.assertIn("sql.security-definer-public-execute", rules)
 
     def test_dollar_like_text_in_literal_does_not_hide_unsafe_alter(self) -> None:
@@ -317,7 +392,7 @@ class PostgreSqlEdgeRegressionTests(unittest.TestCase):
         search_path = next(
             finding
             for finding in findings
-            if finding.rule_id == "sql.security-definer-search-path"
+            if finding.rule_id == "sql.security-definer-search-path-review"
         )
         self.assertEqual(
             'routine = function public."LookupSecret"(secret_id bigint)',

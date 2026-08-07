@@ -466,6 +466,10 @@ _GRANT_ROUTINE_START = re.compile(
     r"ALL\s+(?:FUNCTIONS|PROCEDURES|ROUTINES)\s+IN\s+SCHEMA\b)",
     re.IGNORECASE,
 )
+_RETURNS_EVENT_TRIGGER = re.compile(
+    r"\bRETURNS\s+(?:(?:pg_catalog)\s*\.\s*)?event_trigger\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1057,6 +1061,128 @@ def _before_atomic_body(statement: str) -> str:
     return configuration
 
 
+def _routine_body(statement: str) -> str | None:
+    """Return a plainly quoted routine body, or ``None`` when uncertain."""
+
+    tokens = list(_sql_tokens(statement))
+    for index, token in enumerate(tokens[:-1]):
+        if (
+            token.kind != "word"
+            or _postgres_identifier_fold(token.raw) != "as"
+        ):
+            continue
+        body = tokens[index + 1]
+        if body.kind != "string":
+            return None
+        raw = body.raw
+        if raw.startswith("$"):
+            delimiter = _SQL_DOLLAR_STRING.match(raw)
+            if delimiter is None:
+                return None
+            marker = delimiter.group(0)
+            if not raw.endswith(marker) or len(raw) < len(marker) * 2:
+                return None
+            return raw[len(marker) : -len(marker)]
+        quote_index = 1 if raw[:1].casefold() == "e" else 0
+        if (
+            quote_index >= len(raw)
+            or raw[quote_index] != "'"
+            or not raw.endswith("'")
+        ):
+            return None
+        content = raw[quote_index + 1 : -1].replace("''", "'")
+        if quote_index and "\\" in content:
+            return None
+        return content
+    return None
+
+
+def _routine_body_mentions_search_path(statement: str) -> bool:
+    body = _routine_body(statement)
+    if body is None:
+        return False
+    lexical = mask_sql_comments(body)
+    return (
+        re.search(
+            r"\b(?:search_path|set_config)\b",
+            lexical,
+            re.IGNORECASE,
+        )
+        is not None
+    )
+
+
+def _routine_body_has_unqualified_resolution(statement: str) -> bool:
+    """Recognize a plainly unqualified callable or relation lookup.
+
+    Returning ``False`` never establishes that the complete routine is safe;
+    unknown, call-free, and fully qualified bodies remain visible as manual
+    review findings.
+    """
+
+    body = _routine_body(statement)
+    if body is None:
+        return False
+    lexical = mask_sql_literals_and_comments(
+        body,
+        preserve_quoted_identifiers=True,
+    )
+    tokens = list(_sql_tokens(lexical))
+    structural = {
+        "case",
+        "else",
+        "elsif",
+        "if",
+        "loop",
+        "return",
+        "then",
+        "when",
+        "while",
+    }
+    relation_keywords = {"from", "join", "update"}
+    for index, token in enumerate(tokens[:-1]):
+        if (
+            token.kind == "word"
+            and _postgres_identifier_fold(token.raw) in relation_keywords
+        ):
+            candidate_index = index + 1
+            candidate = tokens[candidate_index]
+            if (
+                candidate.kind == "word"
+                and _postgres_identifier_fold(candidate.raw) == "only"
+                and candidate_index + 1 < len(tokens)
+            ):
+                candidate_index += 1
+                candidate = tokens[candidate_index]
+            if candidate.kind in {"word", "identifier", "placeholder"}:
+                after_index = candidate_index + 1
+                qualified = (
+                    after_index < len(tokens)
+                    and tokens[after_index].kind == "symbol"
+                    and tokens[after_index].raw == "."
+                )
+                if not qualified:
+                    return True
+        if token.kind not in {"word", "identifier"}:
+            continue
+        following = tokens[index + 1]
+        if following.kind != "symbol" or following.raw != "(":
+            continue
+        if (
+            index
+            and tokens[index - 1].kind == "symbol"
+            and tokens[index - 1].raw == "."
+        ):
+            continue
+        if (
+            token.kind == "word"
+            and _postgres_identifier_fold(token.raw) in structural
+        ):
+            continue
+        return True
+    return False
+
+
 def _search_path_mutations(statement: str) -> Iterator[tuple[int, bool]]:
     configuration = _before_atomic_body(statement)
 
@@ -1358,7 +1484,7 @@ def scan_sql(path: str, text: str) -> list[Finding]:
         return re.search(r"\bPUBLIC\b", region, re.IGNORECASE) is not None
 
     revoked_at: dict[_RoutineKey, int] = {}
-    definer_routines: list[tuple[int, int, _RoutineKey, str]] = []
+    definer_routines: list[tuple[int, int, _RoutineKey, str, bool]] = []
     known_definers: set[_RoutineKey] = set()
     comments_masked = mask_sql_comments(lexical_text)
     for statement_offset, comments_statement in sql_statements(comments_masked):
@@ -1467,17 +1593,70 @@ def scan_sql(path: str, text: str) -> list[Finding]:
         )
 
         if definer and routine and not _safe_search_path(comments_statement):
-            rule_id = "sql.security-definer-search-path"
+            unqualified_resolution = (
+                create is not None
+                and _routine_body_has_unqualified_resolution(
+                    comments_statement
+                )
+            )
+            runtime_path_logic = (
+                create is not None
+                and _routine_body_mentions_search_path(comments_statement)
+            )
+            requires_body_review = (
+                not unsafe_mutation
+                and (runtime_path_logic or not unqualified_resolution)
+            )
+            rule_id = (
+                "sql.security-definer-search-path-review"
+                if requires_body_review
+                else "sql.security-definer-search-path"
+            )
             if limiter.allow(rule_id):
                 findings.append(
                     _finding_at(
                         rule_id=rule_id,
-                        severity=Severity.CRITICAL,
-                        title="SECURITY DEFINER routine lacks a safe search_path",
+                        severity=(
+                            Severity.MEDIUM
+                            if requires_body_review
+                            else Severity.CRITICAL
+                        ),
+                        title=(
+                            "SECURITY DEFINER routine needs body-level "
+                            "search_path review"
+                            if requires_body_review
+                            else (
+                                "SECURITY DEFINER routine declares an unsafe "
+                                "search_path"
+                                if unsafe_mutation
+                                else "SECURITY DEFINER routine has unsafe "
+                                "name-resolution evidence"
+                            )
+                        ),
                         message=(
-                            "A SECURITY DEFINER routine does not set a constrained "
-                            "search_path with pg_temp last, enabling attacker-controlled "
-                            "name resolution."
+                            "No recognized declarative safe search_path is "
+                            "present, but "
+                            "the available statement does not prove an unqualified "
+                            "object or callable lookup. The body may contain "
+                            "runtime path logic, "
+                            "qualified references, no SQL body, or no body at all. "
+                            "Review all object, type, function, and operator "
+                            "resolution "
+                            "before admission."
+                            if requires_body_review
+                            else (
+                                "A SECURITY DEFINER routine explicitly sets or resets "
+                                "search_path without constraining it to trusted "
+                                "schemas "
+                                "with pg_temp last. Caller-influenced name resolution "
+                                "can therefore cross the definer authority boundary."
+                                if unsafe_mutation
+                                else "A SECURITY DEFINER routine has no recognized "
+                                "constrained search_path and contains an unqualified "
+                                "object or callable lookup. Caller-influenced "
+                                "name resolution can "
+                                "therefore cross the definer authority boundary."
+                            )
                         ),
                         path=path,
                         text=text,
@@ -1485,7 +1664,8 @@ def scan_sql(path: str, text: str) -> list[Finding]:
                         evidence=routine_evidence,
                         capability="database.security-definer",
                         remediation=(
-                            "Use only trusted schemas and put pg_temp last, for example "
+                            "Use only trusted schemas and put pg_temp last, "
+                            "for example "
                             "`SET search_path = pg_catalog, pg_temp`; schema-qualify "
                             "every referenced object."
                         ),
@@ -1550,14 +1730,48 @@ def scan_sql(path: str, text: str) -> list[Finding]:
         if definer and routine_key is not None:
             known_definers.add(routine_key)
             assert routine_evidence is not None
+            event_trigger = (
+                create is not None
+                and _RETURNS_EVENT_TRIGGER.search(configuration_view) is not None
+            )
             definer_routines.append(
                 (
                     statement_offset,
                     statement_offset + definer.start(),
                     routine_key,
                     routine_evidence,
+                    event_trigger,
                 )
             )
+            if event_trigger and limiter.allow(
+                "sql.security-definer-event-trigger"
+            ):
+                findings.append(
+                    _finding_at(
+                        rule_id="sql.security-definer-event-trigger",
+                        severity=Severity.MEDIUM,
+                        title=(
+                            "Event-trigger callback crosses a definer authority "
+                            "boundary"
+                        ),
+                        message=(
+                            "The SECURITY DEFINER routine returns event_trigger and is "
+                            "invoked through separately privileged event-trigger "
+                            "registration, not as an ordinary callable API. Review the "
+                            "registered events, owner, and DDL authority."
+                        ),
+                        path=path,
+                        text=text,
+                        offset=statement_offset + definer.start(),
+                        evidence=routine_evidence,
+                        capability="database.event-trigger",
+                        remediation=(
+                            "Keep event-trigger creation restricted, constrain the "
+                            "callback search_path, and review its owner and "
+                            "event scope."
+                        ),
+                    )
+                )
 
         grant = _GRANT_ROUTINE_START.match(statement)
         if grant is not None and public_after(statement[grant.end() :], "TO"):
@@ -1644,6 +1858,7 @@ def scan_sql(path: str, text: str) -> list[Finding]:
         definer_offset,
         key,
         routine_evidence,
+        event_trigger,
     ) in definer_routines:
         _, routine_name, arguments = key
         wildcard_key = ("routine", routine_name, arguments)
@@ -1651,8 +1866,12 @@ def scan_sql(path: str, text: str) -> list[Finding]:
             revoked_at.get(key, -1),
             revoked_at.get(wildcard_key, -1),
         )
-        if revoked_offset <= statement_offset and limiter.allow(
-            "sql.security-definer-public-execute"
+        if (
+            not event_trigger
+            and revoked_offset <= statement_offset
+            and limiter.allow(
+                "sql.security-definer-public-execute"
+            )
         ):
             findings.append(
                 _finding_at(
@@ -1661,8 +1880,9 @@ def scan_sql(path: str, text: str) -> list[Finding]:
                     title="SECURITY DEFINER routine remains executable by PUBLIC",
                     message=(
                         "PostgreSQL grants EXECUTE on new routines to PUBLIC by "
-                        "default, so this privileged routine is callable by every "
-                        "role unless a later REVOKE removes that authority."
+                        "default. This exposes a SECURITY DEFINER authority boundary "
+                        "to every role unless a later REVOKE removes that authority; "
+                        "the finding does not by itself prove privilege escalation."
                     ),
                     path=path,
                     text=text,
