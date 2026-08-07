@@ -24,6 +24,12 @@ from .acceptance import (
     PilotAcceptanceConfigurationError,
     run_pilot_acceptance,
 )
+from .adapters import (
+    ExternalAnalysisError,
+    normalize_pgspot,
+    render_external_analysis,
+    verify_external_analysis,
+)
 from .evidence import (
     BUNDLE_SCHEMA_VERSION,
     EvidenceError,
@@ -685,6 +691,50 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="explicitly permit a non-loopback bind; deploy behind mTLS/auth",
     )
+    adapter = subcommands.add_parser(
+        "adapter",
+        help="normalize and independently verify external analyzer evidence",
+    )
+    adapter_commands = adapter.add_subparsers(
+        dest="adapter_command",
+        required=True,
+    )
+    adapter_pgspot = adapter_commands.add_parser(
+        "pgspot",
+        help="normalize saved pgspot 0.9.2 single-file text output",
+    )
+    adapter_pgspot.add_argument("path", metavar="SOURCE_SQL")
+    adapter_pgspot.add_argument("--stdout", metavar="FILE", required=True)
+    adapter_pgspot.add_argument(
+        "--subject-path",
+        metavar="RELATIVE_POSIX_PATH",
+        required=True,
+    )
+    adapter_pgspot.add_argument(
+        "--analyzer-version",
+        required=True,
+        help="declared pgspot version; currently only 0.9.2 is accepted",
+    )
+    adapter_pgspot.add_argument(
+        "--exit-code",
+        type=int,
+        required=True,
+        help="saved pgspot process exit code",
+    )
+    adapter_pgspot.add_argument("--output", metavar="FILE")
+    adapter_verify = adapter_commands.add_parser(
+        "verify",
+        help="rebuild a normalized document from its exact source and stdout",
+    )
+    adapter_verify.add_argument("path", metavar="EXTERNAL_ANALYSIS")
+    adapter_verify.add_argument("--source", metavar="SOURCE_SQL", required=True)
+    adapter_verify.add_argument("--stdout", metavar="FILE", required=True)
+    adapter_verify.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="output_format",
+    )
     return parser
 
 
@@ -1012,6 +1062,88 @@ def _silence_broken_stdout() -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     arguments = parser.parse_args(argv)
+
+    if arguments.command == "adapter":
+        try:
+            if arguments.adapter_command == "pgspot":
+                protected_inputs = {
+                    os.path.abspath(arguments.path),
+                    os.path.abspath(arguments.stdout),
+                }
+                if (
+                    arguments.output
+                    and os.path.abspath(arguments.output) in protected_inputs
+                ):
+                    raise ExternalAnalysisError(
+                        "adapter output must not overwrite source evidence"
+                    )
+                document = normalize_pgspot(
+                    arguments.path,
+                    arguments.stdout,
+                    subject_path=arguments.subject_path,
+                    analyzer_version=arguments.analyzer_version,
+                    exit_code=arguments.exit_code,
+                )
+                rendered = render_external_analysis(document)
+                if arguments.output:
+                    _write_binary_output(arguments.output, rendered)
+                    sys.stdout.write(
+                        "PgExtAssure external analysis 1.0: normalized\n"
+                        f"Analyzer: pgspot {document['analyzer']['version']}\n"
+                        f"Diagnostics: {document['summary']['diagnostics']}\n"
+                        f"Output: {arguments.output}\n"
+                    )
+                else:
+                    sys.stdout.write(rendered.decode("utf-8"))
+            else:
+                document = verify_external_analysis(
+                    arguments.path,
+                    arguments.source,
+                    arguments.stdout,
+                )
+                if arguments.output_format == "json":
+                    sys.stdout.write(
+                        json.dumps(
+                            {
+                                "schema_version": document["schema_version"],
+                                "valid": True,
+                                "analyzer": document["analyzer"],
+                                "subject": document["subject"],
+                                "summary": document["summary"],
+                            },
+                            ensure_ascii=False,
+                            allow_nan=False,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        )
+                        + "\n"
+                    )
+                else:
+                    sys.stdout.write(
+                        "PgExtAssure external analysis 1.0: valid\n"
+                        f"Analyzer: pgspot {document['analyzer']['version']}\n"
+                        f"Subject: {document['subject']['path']}\n"
+                        f"Diagnostics: {document['summary']['diagnostics']}\n"
+                    )
+            sys.stdout.flush()
+            return EXIT_OK
+        except ExternalAnalysisError as error:
+            print(
+                "pgextassure: external analysis: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_SCAN_ERROR
+        except BrokenPipeError:
+            _silence_broken_stdout()
+            return EXIT_OK
+        except OSError as error:
+            print(
+                "pgextassure: cannot write output: "
+                f"{sanitize_terminal_text(error)}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
 
     if arguments.command == "gateway" and arguments.gateway_command == "serve":
         try:

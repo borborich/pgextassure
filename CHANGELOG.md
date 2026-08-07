@@ -6,6 +6,15 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Fail-closed pgspot `0.9.2` text adapter with deterministic, digest-bound
+  External Analysis `1.0` documents and independent source/stdout
+  recomputation.
+- Published External Analysis JSON Schema and explicit observational-only
+  trust boundary that leaves admission policy and Evidence Bundle `1.0`
+  unchanged.
+
 ## [0.1.0-alpha.15] - 2026-07-30
 
 ### Fixed
