@@ -158,7 +158,7 @@ class EnterpriseTrustTests(unittest.TestCase):
             "requirements": {
                 "allowed_gates": allowed_gates or ["pass"],
                 "allowed_tool_versions": ["0.1.0-alpha.15"],
-                "allowed_ruleset_versions": ["2026-07-29.6"],
+                "allowed_ruleset_versions": ["2026-08-07.2"],
                 "allowed_evidence_schema_versions": ["1.0"],
                 "allowed_policy_digests": [
                     allowed_policy_digest or self.evidence_policy_digest
@@ -338,7 +338,7 @@ class EnterpriseTrustTests(unittest.TestCase):
             policy.requirements.allowed_tool_versions,
         )
         self.assertEqual(
-            ("2026-07-29.6",),
+            ("2026-08-07.2",),
             policy.requirements.allowed_ruleset_versions,
         )
         self.assertEqual(

@@ -17,7 +17,9 @@ _ROUTINE_IDENTITY_PREFIX = "routine = "
 _SEMANTIC_ROUTINE_RULES = frozenset(
     {
         "sql.security-definer-public-execute",
+        "sql.security-definer-event-trigger",
         "sql.security-definer-search-path",
+        "sql.security-definer-search-path-review",
     }
 )
 _GENERIC_SQL_DIRECTORIES = frozenset(

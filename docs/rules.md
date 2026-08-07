@@ -46,12 +46,21 @@ The MVP checks for:
 
 - `COPY ... PROGRAM`;
 - server-side file access through `COPY`;
+- recognized external-database and HTTP routine calls or declarations; routine
+  names mentioned only by `ALTER` or `DROP` do not introduce that capability;
 - untrusted PL/Python and PL/Perl declarations;
 - function execution granted to `PUBLIC`;
-- `SECURITY DEFINER` functions without a recognized constrained
-  `search_path`, including `ALTER ... SECURITY DEFINER`;
+- `SECURITY DEFINER` functions with unqualified object or callable resolution and no
+  recognized constrained `search_path`, including `ALTER ... SECURITY
+  DEFINER`;
+- a medium-severity body-review signal when the declaration lacks a recognized
+  safe path but the body contains runtime path logic or only plainly
+  schema-qualified calls;
 - newly created `SECURITY DEFINER` routines without a later, recognizable
-  `REVOKE ... FROM PUBLIC`;
+  `REVOKE ... FROM PUBLIC`, except event-trigger callbacks that are not
+  ordinary callable APIs;
+- `SECURITY DEFINER` event-trigger callbacks as a distinct deployment
+  capability requiring review of registration, owner, and DDL authority;
 - later `ALTER` statements that reset or make the `search_path` unsafe for a
   routine previously marked `SECURITY DEFINER`;
 - an unsafe or indeterminate routine `search_path` mutation when the routine's
@@ -64,10 +73,13 @@ exploitable. Review the full statement and the privileges under which it runs.
 ### Name resolution and `search_path`
 
 PostgreSQL extension scripts and privileged functions can be exposed to
-search-path attacks. The built-in MVP check looks for `SECURITY DEFINER`
-routines without a recognized constrained path. It does not perform full name
-resolution or comprehensively detect unsafe unqualified references; use a
-PostgreSQL AST specialist such as pgspot for that analysis.
+search-path attacks. The built-in check distinguishes strong unsafe evidence
+from cases that need body-level review. An unqualified object or callable lookup without
+a recognized safe path remains critical. Runtime path manipulation and bodies
+whose visible calls are schema-qualified receive a medium review signal because
+lexical analysis cannot prove all object, type, operator, or control-flow
+resolution safe. Use a PostgreSQL AST specialist such as pgspot for deeper
+analysis.
 
 Mitigation normally includes:
 
@@ -157,9 +169,12 @@ removes the underlying finding or evidence from a report.
 `--format grouped-json` produces a review-oriented report alongside the stable
 JSON v1 and SARIF formats. The grouping strategy is deliberately conservative:
 
-- matching `sql.security-definer-search-path` records are grouped only when
-  their parsed routine identity and extension artifact scope match;
-- matching `sql.security-definer-public-execute` records use the same rule;
+- matching `sql.security-definer-search-path` and
+  `sql.security-definer-search-path-review` records are grouped only when their
+  parsed routine identity and extension artifact scope match;
+- matching `sql.security-definer-public-execute` and
+  `sql.security-definer-event-trigger` records use the same routine-identity
+  strategy;
 - all other findings remain scoped to their original source location.
 
 Every group retains all source locations and reports its occurrence count. A
