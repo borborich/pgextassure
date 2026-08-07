@@ -6,6 +6,8 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.16] - 2026-08-07
+
 ### Added
 
 - Fail-closed pgspot `0.9.2` text adapter with deterministic, digest-bound
@@ -26,6 +28,12 @@ and releases use semantic versioning.
   exploit.
 - PUBLIC-execute findings explicitly describe an exposed definer authority
   boundary without claiming that every such routine is a privilege escalation.
+
+### Fixed
+
+- External-connection findings no longer treat routine names mentioned only by
+  `ALTER` or `DROP` as newly introduced outbound-network capability; routine
+  declarations and real calls remain detectable.
 
 ## [0.1.0-alpha.15] - 2026-07-30
 
@@ -238,7 +246,8 @@ and releases use semantic versioning.
 - Gate-preserving broken-pipe handling and stricter `pg_temp` placement for
   recognized safe `SECURITY DEFINER` search paths.
 
-[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.15...HEAD
+[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.16...HEAD
+[0.1.0-alpha.16]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.15...v0.1.0-alpha.16
 [0.1.0-alpha.15]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.14...v0.1.0-alpha.15
 [0.1.0-alpha.14]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.13...v0.1.0-alpha.14
 [0.1.0-alpha.13]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.12...v0.1.0-alpha.13
