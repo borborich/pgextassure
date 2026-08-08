@@ -1,0 +1,213 @@
+name: Independent external reproduction
+
+on:
+  workflow_dispatch:
+
+permissions:
+  attestations: write
+  contents: read
+  id-token: write
+
+jobs:
+  reproduce:
+    name: Reproduce alpha.16 evidence and PostgreSQL semantics
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16.13-bookworm@sha256:472efd9a66f2b2f1a5aeb18b28de74332e6ef88c2b93a1a5d812fb6db67a5f60
+        env:
+          POSTGRES_DB: pgextassure
+          POSTGRES_USER: pgextassure
+          POSTGRES_PASSWORD: integration-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pgextassure -d pgextassure"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out the reproduction protocol
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: protocol
+          persist-credentials: false
+
+      - name: Check out the immutable alpha.16 implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: borborich/pgextassure
+          ref: 96e0f14fe8f2f86a11be1341f87ddece9385a8b2
+          path: pgextassure-release
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Prepare bounded output directory
+        shell: bash
+        run: mkdir results
+
+      - name: Create and verify deterministic scanner evidence
+        uses: ./pgextassure-release
+        with:
+          path: protocol/validation/external-reproduction/fixtures
+          evidence-output: results/scanner-evidence.zip
+          evidence-predicate-output: results/scanner-predicate.json
+          evidence-sbom-output: results/scanner-sbom.spdx.json
+          evidence-created-on: "2026-08-08"
+          component-name: pgextassure-external-reproduction-fixture
+          component-version: "1.0"
+          fail-on: none
+          python-version: "3.11"
+
+      - name: Reproduce PostgreSQL authority-boundary semantics
+        env:
+          PGPASSWORD: integration-only
+          POSTGRES_IMAGE: postgres:16.13-bookworm@sha256:472efd9a66f2b2f1a5aeb18b28de74332e6ef88c2b93a1a5d812fb6db67a5f60
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql_args=(
+            --host=127.0.0.1
+            --port=5432
+            --username=pgextassure
+            --no-psqlrc
+            --set=ON_ERROR_STOP=1
+          )
+          runtime_mount="$GITHUB_WORKSPACE/protocol/validation/external-reproduction/postgres:/protocol:ro"
+
+          docker run --rm --network host --env PGPASSWORD \
+            "$POSTGRES_IMAGE" psql "${psql_args[@]}" \
+            --dbname=pgextassure --tuples-only --no-align \
+            --command='SHOW server_version;' \
+            > results/postgres-version.txt
+
+          docker run --rm --network host --env PGPASSWORD \
+            "$POSTGRES_IMAGE" psql "${psql_args[@]}" \
+            --dbname=pgextassure \
+            --command='CREATE DATABASE pgextassure_shadowing;'
+          docker run --rm --network host --env PGPASSWORD \
+            --volume "$runtime_mount" \
+            "$POSTGRES_IMAGE" psql "${psql_args[@]}" \
+            --dbname=pgextassure_shadowing \
+            --file=/protocol/security-definer-shadowing.sql \
+            > results/security-definer-shadowing.txt
+
+          docker run --rm --network host --env PGPASSWORD \
+            "$POSTGRES_IMAGE" psql "${psql_args[@]}" \
+            --dbname=pgextassure \
+            --command='CREATE DATABASE pgextassure_trigger;'
+          docker run --rm --network host --env PGPASSWORD \
+            --volume "$runtime_mount" \
+            "$POSTGRES_IMAGE" psql "${psql_args[@]}" \
+            --dbname=pgextassure_trigger \
+            --file=/protocol/security-definer-trigger.sql \
+            > results/security-definer-trigger.txt
+
+          grep --fixed-strings \
+            'EXTERNAL_REPRODUCTION|security-definer-shadowing|PASS' \
+            results/security-definer-shadowing.txt
+          grep --fixed-strings \
+            'EXTERNAL_REPRODUCTION|security-definer-trigger|PASS' \
+            results/security-definer-trigger.txt
+
+      - name: Verify the closed protocol and write its report
+        env:
+          REPRODUCTION_ACTOR: ${{ github.actor }}
+          REPRODUCTION_REPOSITORY: ${{ github.repository }}
+          REPRODUCTION_REVISION: ${{ github.sha }}
+          REPRODUCTION_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPRODUCTION_RUNNER_ARCH: ${{ runner.arch }}
+          REPRODUCTION_RUNNER_OS: ${{ runner.os }}
+        shell: bash
+        run: |
+          python protocol/tools/verify_external_reproduction.py \
+            --evidence results/scanner-evidence.zip \
+            --predicate results/scanner-predicate.json \
+            --sbom results/scanner-sbom.spdx.json \
+            --shadowing-output results/security-definer-shadowing.txt \
+            --trigger-output results/security-definer-trigger.txt \
+            --postgres-version-output results/postgres-version.txt \
+            --repository "$REPRODUCTION_REPOSITORY" \
+            --workflow-revision "$REPRODUCTION_REVISION" \
+            --run-url "$REPRODUCTION_RUN_URL" \
+            --actor "$REPRODUCTION_ACTOR" \
+            --runner-os "$REPRODUCTION_RUNNER_OS" \
+            --runner-arch "$REPRODUCTION_RUNNER_ARCH" \
+            --output results/external-reproduction-report.json
+
+      - name: Record artifact checksums
+        working-directory: results
+        shell: bash
+        run: |
+          sha256sum \
+            external-reproduction-report.json \
+            postgres-version.txt \
+            scanner-evidence.zip \
+            scanner-predicate.json \
+            scanner-sbom.spdx.json \
+            security-definer-shadowing.txt \
+            security-definer-trigger.txt \
+            > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Retain the reproduction record
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pgextassure-external-reproduction
+          path: results/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Attest the scanner evidence
+        id: evidence-attestation
+        continue-on-error: true
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: results/scanner-evidence.zip
+          predicate-type: https://github.com/borborich/pgextassure/attestation/evidence/v1
+          predicate-path: results/scanner-predicate.json
+
+      - name: Attest the scanner SBOM
+        id: sbom-attestation
+        continue-on-error: true
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: results/scanner-evidence.zip
+          sbom-path: results/scanner-sbom.spdx.json
+
+      - name: Attest the external reproduction report
+        id: report-attestation
+        continue-on-error: true
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: results/external-reproduction-report.json
+
+      - name: Write the reviewer handoff
+        if: ${{ always() }}
+        env:
+          EVIDENCE_ATTESTATION: ${{ steps.evidence-attestation.outcome }}
+          REPORT_ATTESTATION: ${{ steps.report-attestation.outcome }}
+          SBOM_ATTESTATION: ${{ steps.sbom-attestation.outcome }}
+        shell: bash
+        run: |
+          {
+            echo '# PgExtAssure external reproduction'
+            echo
+            echo 'If every preceding verification step passed, download the'
+            echo '`pgextassure-external-reproduction` artifact and submit the run URL at:'
+            echo
+            echo 'https://github.com/borborich/pgextassure/issues/new?template=external-reproduction.yml'
+            echo
+            echo "Evidence attestation: $EVIDENCE_ATTESTATION"
+            echo "SBOM attestation: $SBOM_ATTESTATION"
+            echo "Report attestation: $REPORT_ATTESTATION"
+            echo
+            echo 'An attestation may be unavailable for a fork or account plan; the'
+            echo 'workflow run, canonical checksums, and uploaded report remain reviewable.'
+          } >> "$GITHUB_STEP_SUMMARY"

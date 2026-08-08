@@ -1,0 +1,73 @@
+name: External reproduction report
+description: Submit an independently operated PgExtAssure reproduction run
+title: "External reproduction: "
+labels:
+  - external-reproduction
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for independently running the disclosure-safe reproduction protocol.
+        Do not attach private source, credentials, or reports from third-party extensions.
+
+  - type: input
+    id: run_url
+    attributes:
+      label: GitHub Actions run URL
+      description: URL of the completed Independent external reproduction workflow in your fork.
+      placeholder: https://github.com/OWNER/pgextassure/actions/runs/123456789
+    validations:
+      required: true
+
+  - type: input
+    id: evidence_digest
+    attributes:
+      label: Scanner evidence SHA-256
+      description: Copy artifacts.evidence from external-reproduction-report.json.
+      placeholder: sha256:e4a7b2e46591ca0519345664a77c203bcced7532cf2733dbe372376e10c53790
+    validations:
+      required: true
+
+  - type: input
+    id: report_digest
+    attributes:
+      label: Report SHA-256
+      description: Copy the external-reproduction-report.json line from SHA256SUMS.
+      placeholder: 64 lowercase hexadecimal characters
+    validations:
+      required: true
+
+  - type: dropdown
+    id: compensation
+    attributes:
+      label: Compensation disclosure
+      description: Compensation must not depend on whether the protocol passes or fails.
+      options:
+        - No compensation was received
+        - Fixed compensation was received for completing the protocol
+        - Other relationship disclosed below
+    validations:
+      required: true
+
+  - type: textarea
+    id: observations
+    attributes:
+      label: Observations or deviations
+      description: Describe failures, retries, workflow edits, or relationships relevant to independence. Write "None" if there were none.
+      placeholder: None
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: declarations
+    attributes:
+      label: Operator declarations
+      options:
+        - label: I ran the workflow in a GitHub account or organization I control.
+          required: true
+        - label: I did not modify the reproduction workflow, fixtures, SQL reproductions, or verifier before this run.
+          required: true
+        - label: I understand that a passing result is not a security certification or an extension allowlist decision.
+          required: true
+        - label: I consent to this issue and its public metadata being cited as an external reproduction record.
+          required: true

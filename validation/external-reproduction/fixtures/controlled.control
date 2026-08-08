@@ -1,0 +1,4 @@
+comment = 'Disclosure-safe PgExtAssure external reproduction fixture'
+default_version = '1.0'
+relocatable = false
+trusted = false
