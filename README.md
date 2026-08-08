@@ -618,6 +618,7 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Helm deployment with mandatory mTLS](docs/helm-deployment.md)
 - [Roadmap](docs/roadmap.md)
 - [Public corpus pilot](benchmarks/public-corpus/README.md)
+- [Independent external reproduction](docs/external-reproduction.md)
 - [Public Extension Assurance Index](docs/public-assurance-index.md)
 
 ## Development
