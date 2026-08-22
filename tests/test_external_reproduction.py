@@ -9,6 +9,7 @@ import sys
 from tempfile import TemporaryDirectory
 import unittest
 
+from pgextassure import __release_version__
 from tests.support import PROJECT_ROOT, run_cli
 
 
@@ -16,7 +17,26 @@ REPRODUCTION_ROOT = PROJECT_ROOT / "validation" / "external-reproduction"
 
 
 class ExternalReproductionTests(unittest.TestCase):
+    def test_protocol_remains_pinned_to_the_reproduced_alpha16_release(self) -> None:
+        workflow_path = (
+            PROJECT_ROOT / ".github/workflows/external-reproduction.yml"
+        )
+        verifier_path = PROJECT_ROOT / "tools/verify_external_reproduction.py"
+        workflow = workflow_path.read_text(encoding="utf-8")
+        verifier = verifier_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "ref: 96e0f14fe8f2f86a11be1341f87ddece9385a8b2",
+            workflow,
+        )
+        self.assertIn('"tool_version": "0.1.0-alpha.16"', verifier)
+
     def test_controlled_protocol_produces_expected_report(self) -> None:
+        if __release_version__ != "0.1.0-alpha.16":
+            self.skipTest(
+                "the disclosure-safe reproduction protocol is frozen to alpha.16"
+            )
+
         with TemporaryDirectory() as directory:
             root = Path(directory)
             evidence = root / "scanner-evidence.zip"

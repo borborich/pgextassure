@@ -6,6 +6,26 @@ and releases use semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.17] - 2026-08-22
+
+### Added
+
+- Public, immutable external-reproduction workflow and disclosure-safe report
+  path for independent verification of the alpha.16 protocol.
+- Public validation record documenting multiple independent successful
+  reproductions without claiming certification, customer adoption, or
+  employer endorsement.
+- Self-service Founding Partner Evaluation, sample readiness report, and
+  extension-admission evidence rationale for asynchronous enterprise
+  evaluation.
+
+### Changed
+
+- GitHub and package metadata now point evaluators to the PgExtAssure product
+  site and documentation.
+- The primary adoption path is a customer-controlled GitHub Action with
+  portable evidence rather than a mandatory introductory meeting.
+
 ## [0.1.0-alpha.16] - 2026-08-07
 
 ### Added
@@ -246,7 +266,8 @@ and releases use semantic versioning.
 - Gate-preserving broken-pipe handling and stricter `pg_temp` placement for
   recognized safe `SECURITY DEFINER` search paths.
 
-[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.16...HEAD
+[Unreleased]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.17...HEAD
+[0.1.0-alpha.17]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.16...v0.1.0-alpha.17
 [0.1.0-alpha.16]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.15...v0.1.0-alpha.16
 [0.1.0-alpha.15]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.14...v0.1.0-alpha.15
 [0.1.0-alpha.14]: https://github.com/borborich/pgextassure/compare/v0.1.0-alpha.13...v0.1.0-alpha.14
