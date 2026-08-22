@@ -3,7 +3,7 @@
 **Status:** Example structure only  
 **Subject:** Controlled demonstration extension  
 **Decision owner:** Example Platform Security Team  
-**PgExtAssure release:** `0.1.0-alpha.16`
+**PgExtAssure release:** `0.1.0-alpha.17`
 
 This document shows the shape of a Founding Partner Evaluation deliverable. It
 is not based on a customer engagement and is not a security assessment,
@@ -94,4 +94,3 @@ isolated runtime testing, and production controls.
 - **Pilot:** integrate the evidence workflow into one real admission queue.
 - **Adopt with limits:** retain the static gate as one input to a broader
   organization-owned assurance process.
-

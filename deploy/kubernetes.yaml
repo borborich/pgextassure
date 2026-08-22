@@ -40,7 +40,7 @@ spec:
       containers:
         - name: gateway
           # Replace this release tag with its independently verified digest.
-          image: ghcr.io/borborich/pgextassure:0.1.0-alpha.16
+          image: ghcr.io/borborich/pgextassure:0.1.0-alpha.17
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
