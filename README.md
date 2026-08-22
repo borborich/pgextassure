@@ -1,6 +1,6 @@
 # PgExtAssure
 
-**Static pre-admission security assurance for PostgreSQL extensions.**
+**Portable pre-admission security evidence for PostgreSQL extensions.**
 
 PgExtAssure inspects an extension source tree before a platform team allowlists,
 builds, or installs it. It reads PostgreSQL extension metadata and source files,
@@ -14,7 +14,38 @@ It does **not** build, load, install, or execute the extension it scans.
 
 Canonical repository: <https://github.com/borborich/pgextassure>
 
+Product site: <https://pgextassure.shbb.pro/>
+
 The command-line executable and Python module are both named `pgextassure`.
+
+## Start without a meeting
+
+Choose the shortest path for your role:
+
+| You are | Start here | Result |
+| --- | --- | --- |
+| Extension maintainer | [Add the audit-only GitHub Action](#github-action) | A machine-readable report on every selected change |
+| Platform or security reviewer | [Create and verify Evidence Bundle 1.0](#two-minute-quickstart) | Evidence bound to exact source, coverage, and policy inputs |
+| Independent verifier | [Run the public reproduction workflow](docs/external-reproduction.md) | A public pass or failure record from infrastructure you control |
+| Team with a real intake decision | [Request a bounded evaluation](docs/founding-partner-evaluation.md) | A customer-controlled admission evidence workflow and handoff report |
+
+No hosted PgExtAssure account is required. The static scanner does not
+intentionally send source, findings, or telemetry to a PgExtAssure service.
+
+## Public validation snapshot
+
+PgExtAssure alpha.16 has been independently reproduced by multiple external
+software engineers. Three successful public workflow runs are recorded from
+independently controlled forks. The disclosure-safe public corpus index records
+16 pinned projects and 2,114 files processed with alpha.15.
+
+Read the exact run links, scope, and limitations in the
+[Public validation record](docs/public-validation.md). These results demonstrate
+bounded reproducibility—not certification, customer adoption, production
+safety, or endorsement by an operator or employer.
+
+For the problem and evidence-interface rationale, read
+[PostgreSQL extension admission needs portable evidence](docs/extension-admission-evidence.md).
 
 ## The problem
 
@@ -619,6 +650,10 @@ flow must be explicit opt-in, preview the exact payload, and support deletion.
 - [Roadmap](docs/roadmap.md)
 - [Public corpus pilot](benchmarks/public-corpus/README.md)
 - [Independent external reproduction](docs/external-reproduction.md)
+- [Public validation record](docs/public-validation.md)
+- [Why extension admission needs portable evidence](docs/extension-admission-evidence.md)
+- [Founding Partner Evaluation](docs/founding-partner-evaluation.md)
+- [Illustrative readiness report](docs/sample-readiness-report.md)
 - [Public Extension Assurance Index](docs/public-assurance-index.md)
 
 ## Development

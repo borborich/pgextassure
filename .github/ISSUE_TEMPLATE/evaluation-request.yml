@@ -1,0 +1,65 @@
+name: Public evaluation request
+description: Request a bounded PgExtAssure evaluation for public source only
+title: "Evaluation request: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form only for public repositories and non-sensitive workflow information. Do not include private source, credentials, vulnerability details, customer data, or unpublished findings. Security reports must follow SECURITY.md.
+  - type: input
+    id: role
+    attributes:
+      label: Role and organization type
+      description: For example, extension maintainer, PostgreSQL consultant, managed platform, or internal platform team.
+      placeholder: Extension maintainer at a commercial PostgreSQL vendor
+    validations:
+      required: true
+  - type: input
+    id: repository
+    attributes:
+      label: Public extension repository and exact revision
+      description: Provide a public URL and tag, commit, or immutable digest.
+      placeholder: https://github.com/example/extension at commit ...
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Admission decision
+      description: What exact allowlist, build, release, or installation decision should the evidence support?
+    validations:
+      required: true
+  - type: textarea
+    id: current_workflow
+    attributes:
+      label: Current review workflow
+      description: Describe the current inputs, reviewer, policy, and output. Do not disclose sensitive findings.
+    validations:
+      required: true
+  - type: dropdown
+    id: execution_boundary
+    attributes:
+      label: Approved execution boundary
+      options:
+        - GitHub Actions in the public repository
+        - Customer-controlled CI or runner
+        - Local isolated environment
+        - Not yet decided
+    validations:
+      required: true
+  - type: input
+    id: decision_date
+    attributes:
+      label: Desired decision date
+      placeholder: YYYY-MM-DD
+    validations:
+      required: true
+  - type: checkboxes
+    id: acknowledgements
+    attributes:
+      label: Public-data acknowledgement
+      options:
+        - label: I understand this issue is public and contains no private source, credentials, vulnerability details, customer data, or unpublished findings.
+          required: true
+        - label: I understand PgExtAssure produces review evidence, not a security certificate or installation authorization.
+          required: true
